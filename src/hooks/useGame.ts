@@ -130,6 +130,14 @@ export function useGame({ players, puzzles }: UseGameInput) {
 
     const text = buildShareText(mode, puzzle, state);
     setShareText(text);
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (_) {}
+    }
+
     await navigator.clipboard?.writeText(text);
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }

@@ -114,7 +114,7 @@ header{text-align:center;padding:20px 0 14px;border-bottom:1px solid var(--gris)
 .share-btn:hover{background:#00c060}
 .rejouer-btn{background:transparent;color:var(--gris-clair);font-family:'Barlow Condensed',sans-serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;border:1px solid var(--gris);padding:11px 20px;cursor:pointer;width:100%;transition:all .2s;margin-top:8px}
 .rejouer-btn:hover{border-color:var(--or);color:var(--or)}
-.share-preview{background:#111;border:1px solid var(--gris);padding:10px;margin-top:10px;font-family:monospace;font-size:12px;color:var(--gris-clair);text-align:left;white-space:pre;line-height:1.6;display:none}
+.share-preview{background:#111;border:1px solid var(--gris);padding:10px;margin-top:10px;font-family:monospace,'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji';font-size:12px;color:var(--gris-clair);text-align:left;white-space:pre;line-height:1.6;display:none}
 .share-preview.show{display:block}
 .copied-msg{color:var(--vert);font-size:13px;margin-top:8px;display:none}
 .copied-msg.show{display:block}
@@ -445,21 +445,27 @@ function showEnd(win) {
   buildShare();
 }
 
+const GRADES = ['🎖️ Capitaine','🏅 Titulaire','🔄 Joueur de rotation','🧤 3ème gardien','🛋️ Joueur du loft'];
+
 function buildShare() {
   const date = new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
   const mi = MODE_INFO[currentMode];
+  const grade = GRADES[Math.min(state.erreurs, GRADES.length-1)];
   let grid='';
   currentGrille.rows.forEach(r=>{currentGrille.cols.forEach(c=>{grid+=state.cellules[r+'-'+c].remplie?'🟢':'⬛';});grid+='\n';});
-  const text = mi.emoji+' Foot Grid L1 25/26 — '+date+'\nMode : '+mi.label+'\n'+grid+'✅ '+state.trouves+'/9 trouvés\n❌ '+state.erreurs+'/'+MAX_ERR+' erreurs\n🏆 '+calcScore()+' pts\n\njoue sur footgrid.fr';
+  const text = mi.emoji+' Foot Grid L1 25/26 — '+date+'\n'+mi.label+'\n\n'+grid+'\n'+grade+'\n✅ '+state.trouves+'/9 trouvés · ❌ '+state.erreurs+' erreur'+(state.erreurs!==1?'s':'')+' · 🏆 '+calcScore()+' pts\n\n👉 footgrid.fr';
   document.getElementById('share-preview').textContent = text;
   document.getElementById('share-preview').classList.add('show');
   return text;
 }
 
-function shareResult() {
+async function shareResult() {
   const t = buildShare();
-  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+  if (navigator.share) {
+    try { await navigator.share({text: t}); return; } catch(e) {}
+  }
   if (navigator.clipboard) navigator.clipboard.writeText(t).then(()=>{document.getElementById('copied-msg').classList.add('show');});
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
 }
 
 let toastTimer;

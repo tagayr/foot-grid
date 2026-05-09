@@ -796,7 +796,7 @@ header {
   border: 1px solid var(--gris);
   padding: 10px;
   margin-top: 10px;
-  font-family: monospace;
+  font-family: monospace, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
   font-size: 12px;
   color: var(--gris-clair);
   text-align: left;
