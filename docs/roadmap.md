@@ -169,30 +169,37 @@ Acceptance criteria:
 
 Goal: generate candidate grids from the database automatically.
 
-Tasks:
+**Status: partially implemented** — see `docs/puzzle-generation.md` for full details.
 
-- Build script that reads active snapshot data.
-- Generate candidate axes by mode.
-- Compute accepted answers for each cell.
-- Reject cells with zero answers.
-- Reject grids that are too easy, too hard, or repetitive.
-- Calculate difficulty score.
-- Write candidate puzzles as `draft` or `scheduled`.
-- Add a command for local generation and future GitHub Actions use.
+Done:
+
+- [x] `scripts/import-players.mjs` — imports Big 5 player data (2 475 players, 1 713 clubs) into Supabase with snapshot versioning. Run with `node scripts/import-players.mjs`.
+- [x] `scripts/generate-puzzles.mjs` — computes all valid (axisA × axisB) cells for all three modes, scores difficulty, assembles non-overlapping 3×3 grids. Run with `node scripts/generate-puzzles.mjs`.
+- [x] `data/puzzle-cells.json` — 18 555 valid cells across all modes with solutions and difficulty.
+- [x] `data/generated-grids.json` — assembled grids: 4 easy, 10 medium, 944 hard across all modes.
+
+Remaining tasks:
+
+- [ ] Replace career-span fame proxy with real market-value data (Transfermarkt or similar) — currently produces very few easy/medium grids.
+- [ ] Write script to push `generated-grids.json` to Supabase as draft puzzles (`puzzles`, `puzzle_axes`, `puzzle_cells`, `accepted_answers`).
+- [ ] Add a command for scheduled/CI use (GitHub Actions nightly run).
+- [ ] Validate generated grids manually before scheduling as daily puzzles.
 
 Suggested owner: data/backend.
 
 Primary files:
 
-- `scripts/`
-- `src/game/validation.ts`
+- `scripts/generate-puzzles.mjs`
+- `scripts/import-players.mjs`
+- `data/players_all.json`
+- `docs/puzzle-generation.md`
 - `supabase/migrations/`
 
 Acceptance criteria:
 
-- Script can generate multiple valid puzzle candidates.
-- Generated puzzle rows have axes, cells, and accepted answers.
-- Candidate quality metrics are visible in logs.
+- Script can generate multiple valid puzzle candidates for all three modes.
+- Difficulty scoring distributes grids reasonably across easy/medium/hard.
+- Generated puzzles can be pushed to Supabase as draft rows ready for admin review.
 
 ### 6. Admin Review Workflow
 

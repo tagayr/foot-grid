@@ -8,3 +8,6 @@ node_modules
 out
 .env*.local
 *.tsbuildinfo
+data/puzzle-cells.json
+data/generated-grids.json
+data/players_all.json
