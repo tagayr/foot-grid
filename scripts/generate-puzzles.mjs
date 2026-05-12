@@ -31,11 +31,15 @@ for (let y = 1994; y <= 2024; y += 2) {
 
 // Difficulty thresholds based on Transfermarkt rang_mondial.
 // Calibrated on the Big 5 dataset (2274 ranked players, ranks up to ~7000+):
-//   top 5%  ≈ rank ≤ 100  → level 1 (stars recognizable by any fan)
-//   top 20% ≈ rank ≤ 500  → level 2 (well-known in their league)
-//   top 33% ≈ rank ≤ 1000 → level 3 (regular starters)
-//   beyond             → level 4 (obscure / squad depth)
-const FAME_THRESHOLDS = { 1: 100, 2: 500, 3: 1000 };
+//   rank ≤ 200  → level 1 (stars: Mbappé, Benzema, top club regulars)
+//   rank ≤ 1000 → level 2 (well-known: starting XI at big clubs)
+//   rank ≤ 2000 → level 3 (league regulars)
+//   beyond      → level 4 (squad depth / obscure)
+const FAME_THRESHOLDS = { 1: 200, 2: 1000, 3: 2000 };
+
+// Max number of cells in a grid where a single player is a valid answer.
+// Prevents grids dominated by one journeyman who played for all 6 clubs.
+const MAX_PLAYER_DOMINANCE = 3;
 
 // Axis filters: skip axes with too few players (avoids obscure clubs)
 const MIN_PLAYERS_PER_CLUB = 3;
@@ -290,6 +294,15 @@ function assembleGrids(mode, cells) {
         const gridCells = rows.flatMap((r) =>
           cols.map((c) => ({ row: r, col: c, ...lookupCell(r, c) }))
         );
+
+        // Reject grids dominated by a single player (journeyman effect)
+        const playerCellCount = new Map();
+        for (const cell of gridCells) {
+          for (const pid of cell.solutions ?? []) {
+            playerCellCount.set(pid, (playerCellCount.get(pid) ?? 0) + 1);
+          }
+        }
+        if (Math.max(...playerCellCount.values()) > MAX_PLAYER_DOMINANCE) continue;
 
         grids.push({ rows, cols, cells: gridCells });
         markUsed(rows, cols);
