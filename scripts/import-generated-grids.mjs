@@ -120,6 +120,7 @@ async function importCandidate(candidate, snapshotId, refs) {
   validateCandidateReferences(candidate, refs);
 
   const puzzle = await insertSingle("puzzles", {
+    kind: "practice",
     mode: candidate.mode,
     status: "draft",
     seed: candidate.seed,

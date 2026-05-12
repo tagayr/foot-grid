@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dbModeToAppMode } from "./modes";
-import type { AxisType, Puzzle, PuzzlesByMode } from "@/game/types";
+import type { AxisType, Mode, Puzzle, PuzzlesByMode } from "@/game/types";
 import type { Database } from "@/lib/supabase/database.types";
+import { appModeToDbMode } from "./modes";
 
 type PublishedPuzzleRow = {
   id: string;
@@ -36,6 +37,7 @@ export async function loadPublishedPuzzlesForDate(
   const { data: puzzleRows, error: puzzleError } = await supabase
     .from("puzzles")
     .select("id, mode")
+    .eq("kind", "daily")
     .eq("status", "published")
     .eq("puzzle_date", date);
 
@@ -90,6 +92,81 @@ export async function loadPublishedPuzzlesForDate(
       puzzleId: publishedPuzzle.id
     });
     result[dbModeToAppMode(publishedPuzzle.mode)] = puzzle;
+  }
+
+  return result;
+}
+
+export async function loadRandomPracticePuzzle(
+  supabase: SupabaseClient<Database>,
+  mode: Mode
+): Promise<Puzzle | null> {
+  const { data: puzzleRows, error: puzzleError } = await supabase
+    .from("puzzles")
+    .select("id, mode")
+    .eq("kind", "practice")
+    .eq("status", "published")
+    .is("puzzle_date", null)
+    .eq("mode", appModeToDbMode(mode));
+
+  if (puzzleError) {
+    throw puzzleError;
+  }
+
+  const publishedPuzzles = (puzzleRows ?? []) as PublishedPuzzleRow[];
+  if (!publishedPuzzles.length) {
+    return null;
+  }
+
+  const selectedPuzzle = publishedPuzzles[Math.floor(Math.random() * publishedPuzzles.length)];
+  const puzzles = await loadPuzzlesByIds(supabase, [selectedPuzzle.id]);
+  return puzzles.get(selectedPuzzle.id) ?? null;
+}
+
+async function loadPuzzlesByIds(supabase: SupabaseClient<Database>, puzzleIds: string[]) {
+  const { data: axisRows, error: axisError } = await supabase
+    .from("puzzle_axes")
+    .select("puzzle_id, axis, position, kind, label, season_start")
+    .in("puzzle_id", puzzleIds);
+  if (axisError) {
+    throw axisError;
+  }
+
+  const { data: cellRows, error: cellError } = await supabase
+    .from("puzzle_cells")
+    .select("id, puzzle_id, row_position, col_position")
+    .in("puzzle_id", puzzleIds);
+  if (cellError) {
+    throw cellError;
+  }
+
+  const cells = (cellRows ?? []) as CellRow[];
+  const cellIds = cells.map((cell) => cell.id);
+  const { data: answerRows, error: answerError } = cellIds.length
+    ? await supabase
+        .from("accepted_answers")
+        .select("puzzle_cell_id, players(display_name)")
+        .in("puzzle_cell_id", cellIds)
+    : { data: [], error: null };
+  if (answerError) {
+    throw answerError;
+  }
+
+  const axesByPuzzle = groupBy((axisRows ?? []) as AxisRow[], (axis) => axis.puzzle_id);
+  const cellsByPuzzle = groupBy(cells, (cell) => cell.puzzle_id);
+  const answersByCell = groupAnswersByCell((answerRows ?? []) as unknown as AcceptedAnswerRow[]);
+  const result = new Map<string, Puzzle>();
+
+  for (const puzzleId of puzzleIds) {
+    result.set(
+      puzzleId,
+      adaptPuzzle({
+        axes: axesByPuzzle.get(puzzleId) ?? [],
+        cells: cellsByPuzzle.get(puzzleId) ?? [],
+        answersByCell,
+        puzzleId
+      })
+    );
   }
 
   return result;

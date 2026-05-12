@@ -12,7 +12,8 @@ The generation pipeline transforms the player database into ready-to-use 3×3 gr
 | `scripts/import-players.mjs` | Imports `players_all.json` into Supabase (`players`, `clubs`, `countries`, `career_spells`) |
 | `scripts/generate-puzzles.mjs` | Generates all valid cells and assembles grids — outputs to `data/` |
 | `scripts/import-generated-grids.mjs` | Imports generated grids to Supabase as draft puzzles |
-| `scripts/publish-daily-puzzles.mjs` | Publishes one generated draft per mode for a selected date |
+| `scripts/publish-daily-puzzles.mjs` | Publishes one generated daily puzzle for a selected date |
+| `scripts/publish-practice-puzzles.mjs` | Publishes generated drafts into the practice pool |
 | `data/puzzle-cells.json` | All valid axis pairs with solutions and difficulty (≈3 MB) |
 | `data/generated-grids.json` | Assembled 3×3 grids grouped by mode and difficulty (≈1.5 MB) |
 
@@ -32,9 +33,13 @@ node scripts/generate-puzzles.mjs --dry-run  # print stats, write nothing
 node scripts/import-generated-grids.mjs
 node scripts/import-generated-grids.mjs --dry-run
 
-# Step 4 — publish one generated draft per mode for a date
-node scripts/publish-daily-puzzles.mjs --date 2026-05-12
+# Step 4 — publish one generated daily puzzle for a date
+node scripts/publish-daily-puzzles.mjs --date 2026-05-12 --mode club_year
 node scripts/publish-daily-puzzles.mjs --dry-run
+
+# Step 5 — publish generated drafts into the practice pool
+node scripts/publish-practice-puzzles.mjs
+node scripts/publish-practice-puzzles.mjs --dry-run
 ```
 
 ## Game modes
@@ -100,7 +105,7 @@ Thresholds currently used by `scripts/generate-puzzles.mjs`: rank ≤ 200, ≤ 1
 
 The current generated set has been imported to Supabase as **722 draft puzzles**, with **6 498 puzzle cells** and **13 110 accepted answers**.
 
-For **2026-05-12**, one medium generated puzzle per mode has been published:
+Before the daily/practice split, **2026-05-12** was used to publish one medium generated puzzle per mode:
 
 - `club_club`: `transfermarkt-big5-v1-generated-club_club-medium-0002`
 - `club_year`: `transfermarkt-big5-v1-generated-club_year-medium-0007`
@@ -114,3 +119,4 @@ For **2026-05-12**, one medium generated puzzle per mode has been published:
 4. **Year-range mode balance**: the `club_year` mode produces fewer grids because many clubs only appear in a small number of year windows. Expanding the player database (longer history) would improve coverage.
 5. **Snapshot semantics**: the player importer still needs a review so future provider imports preserve historical reproducibility cleanly.
 6. **Frontend player search**: published Supabase puzzles now use Supabase player names for search, but the current client loads display names only. Add richer metadata/ranking or server-side filtering when the dataset grows.
+7. **Migration required**: daily/practice split requires `supabase/migrations/20260512132000_add_puzzle_kind.sql` to be applied in Supabase before the new scripts and frontend queries work remotely.

@@ -1,18 +1,20 @@
 import type { Mode } from "@/game/types";
 
 type ModePickerProps = {
+  loadingMode?: Mode | null;
   onStart: (mode: Mode) => void;
+  title?: string;
 };
 
-export default function ModePicker({ onStart }: ModePickerProps) {
+export default function ModePicker({ loadingMode = null, onStart, title = "Choisir un mode" }: ModePickerProps) {
   return (
     <div>
-      <div className="mode-title">Choisir un mode</div>
+      <div className="mode-title">{title}</div>
       <div className="mode-cards">
-        <button className="mode-card cc" onClick={() => onStart("cc")}>
+        <button className="mode-card cc" disabled={loadingMode !== null} onClick={() => onStart("cc")}>
           <span className="mode-header">
             <span className="mode-name">🏟️ Club x Club</span>
-            <span className="mode-tag">Carrière</span>
+            <span className="mode-tag">{loadingMode === "cc" ? "..." : "Carrière"}</span>
           </span>
           <span className="mode-desc">
             Trouve un joueur L1 25/26 ayant joué dans les <strong>deux clubs</strong> au cours de sa carrière.
@@ -24,10 +26,10 @@ export default function ModePicker({ onStart }: ModePickerProps) {
             <span>→ Amine Gouiri...</span>
           </span>
         </button>
-        <button className="mode-card ca" onClick={() => onStart("ca")}>
+        <button className="mode-card ca" disabled={loadingMode !== null} onClick={() => onStart("ca")}>
           <span className="mode-header">
             <span className="mode-name">📅 Club x Année</span>
-            <span className="mode-tag">Historique</span>
+            <span className="mode-tag">{loadingMode === "ca" ? "..." : "Historique"}</span>
           </span>
           <span className="mode-desc">
             Trouve un joueur L1 25/26 qui était dans le <strong>club indiqué</strong> lors de la{" "}
@@ -40,10 +42,10 @@ export default function ModePicker({ onStart }: ModePickerProps) {
             <span>→ Hakimi, Vitinha...</span>
           </span>
         </button>
-        <button className="mode-card cs" onClick={() => onStart("cs")}>
+        <button className="mode-card cs" disabled={loadingMode !== null} onClick={() => onStart("cs")}>
           <span className="mode-header">
             <span className="mode-name">⚽ Club x Sélection</span>
-            <span className="mode-tag">Nationalité</span>
+            <span className="mode-tag">{loadingMode === "cs" ? "..." : "Nationalité"}</span>
           </span>
           <span className="mode-desc">
             Trouve un joueur ayant joué dans le <strong>club</strong> ET dont la nationalité correspond à la{" "}

@@ -331,6 +331,14 @@ header {
   background: var(--or);
 }
 
+.mode-card.daily::before {
+  background: var(--or);
+}
+
+.mode-card.practice::before {
+  background: var(--vert);
+}
+
 .mode-card.ca::before {
   background: var(--violet);
 }
@@ -341,6 +349,12 @@ header {
 
 .mode-card:hover {
   transform: translateX(4px);
+}
+
+.mode-card:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
 }
 
 .mode-header,
@@ -366,6 +380,14 @@ header {
   color: var(--or);
 }
 
+.mode-card.daily .mode-name {
+  color: var(--or);
+}
+
+.mode-card.practice .mode-name {
+  color: var(--vert);
+}
+
 .mode-card.ca .mode-name {
   color: var(--violet);
 }
@@ -389,6 +411,7 @@ header {
 }
 
 .mode-card.cc .mode-tag,
+.mode-card.daily .mode-tag,
 .mode-badge.cc,
 .mode-card.cc .ex-b {
   background: #2a2200;
@@ -403,6 +426,7 @@ header {
 }
 
 .mode-card.cs .mode-tag,
+.mode-card.practice .mode-tag,
 .mode-badge.cs,
 .mode-card.cs .ex-b {
   background: var(--vert-sombre);

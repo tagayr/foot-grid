@@ -57,9 +57,10 @@ Important files:
 - The player database is prototype data and should not be treated as production-quality.
 - Random grid play is not implemented in the app.
 - Puzzle generation depends on local ignored source/artifact files under `data/`, so a fresh checkout still needs `data/players_all.json` before it can reproduce the pipeline.
-- Generated puzzle candidates have been imported to Supabase as drafts, and one generated puzzle per mode has been published for 2026-05-12.
+- Generated puzzle candidates have been imported to Supabase as drafts; the next model publishes one ranked daily puzzle per date and uses the rest as practice.
 - There is a manual publish script, but not yet an admin review UI or recurring scheduler.
 - Supabase player search currently loads display names only; richer player metadata and server-side search can come later.
+- Daily vs practice mode is implemented in code, pending application of `supabase/migrations/20260512132000_add_puzzle_kind.sql` in Supabase.
 - Supabase types are manually maintained for now.
 - The old `index.html`, `players_raw.json`, and `players_clean.json` still exist as prototype/reference artifacts.
 
@@ -185,10 +186,13 @@ Done:
 - [x] `scripts/import-players.mjs` — draft importer for a Big 5 `players_all.json` dataset into Supabase.
 - [x] `scripts/generate-puzzles.mjs` — draft generator that computes valid cells for all three modes, scores difficulty, and assembles non-overlapping 3x3 grids.
 - [x] `scripts/import-generated-grids.mjs` — imports generated candidates into Supabase as draft puzzles with axes, cells, and accepted answers.
-- [x] `scripts/publish-daily-puzzles.mjs` — publishes one generated draft per mode for a selected date.
+- [x] `scripts/publish-daily-puzzles.mjs` — publishes one generated daily puzzle for a selected date.
+- [x] `scripts/publish-practice-puzzles.mjs` — publishes generated drafts into the practice pool.
 - [x] `useSupabasePlayers` — loads Supabase player names for search when published Supabase puzzles are active.
+- [x] Daily/practice home split in the frontend.
+- [x] `puzzle_kind` migration prepared for Supabase.
 - [x] Imported current generated candidates into Supabase: 722 draft puzzles, 6 498 cells, and 13 110 accepted answers.
-- [x] Published one generated medium puzzle per mode for 2026-05-12.
+- [x] Previously published one generated medium puzzle per mode for 2026-05-12 before the daily/practice split; this should be normalized after the migration is applied.
 - [x] `docs/puzzle-generation.md` — documents Clement's current pipeline assumptions, commands, and reported generation results.
 - [x] `package.json` commands for player import, puzzle generation, generated-grid import, and daily publishing.
 
@@ -203,6 +207,7 @@ Important current caveats:
 Remaining tasks:
 
 - [ ] Reconcile difficulty docs with code thresholds and decide the first production calibration.
+- [ ] Apply `20260512132000_add_puzzle_kind.sql` to Supabase, then publish the practice pool and one daily puzzle under the new model.
 - [ ] Decide whether production generation reads directly from Supabase snapshots or from generated local data files.
 - [ ] Improve player search with richer Supabase metadata, ranking, and server-side filtering if the dataset grows.
 - [ ] Build admin review UI or a safer scheduling workflow for selecting future daily puzzles.

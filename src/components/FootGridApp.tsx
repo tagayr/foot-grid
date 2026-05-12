@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import playersData from "@/data/players.generated.json";
 import puzzlesData from "@/data/puzzles.generated.json";
 import AuthPanel from "./auth/AuthPanel";
 import { useAuth } from "./auth/AuthProvider";
-import type { Player, PuzzlesByMode } from "@/game/types";
+import type { Mode, Player, PuzzlesByMode } from "@/game/types";
+import { loadRandomPracticePuzzle } from "@/lib/puzzles/loadPublishedPuzzles";
 import { useGame } from "@/hooks/useGame";
 import { usePublishedPuzzles } from "@/hooks/usePublishedPuzzles";
 import { useSupabasePlayers } from "@/hooks/useSupabasePlayers";
@@ -13,6 +14,7 @@ import EndScreen from "./game/EndScreen";
 import ErrorsRow from "./game/ErrorsRow";
 import GameGrid from "./game/GameGrid";
 import Header from "./game/Header";
+import HomeMenu from "./game/HomeMenu";
 import ModePicker from "./game/ModePicker";
 import RulesPanel from "./game/RulesPanel";
 import SearchModal from "./game/SearchModal";
@@ -24,10 +26,50 @@ export default function FootGridApp() {
   const publishedPuzzles = usePublishedPuzzles(puzzles);
   const supabasePlayers = useSupabasePlayers(publishedPuzzles.source === "supabase");
   const activePlayers = publishedPuzzles.source === "supabase" && supabasePlayers.players.length ? supabasePlayers.players : players;
-  const game = useGame({ players: activePlayers, puzzles: publishedPuzzles.puzzles });
-  const { loading, user } = useAuth();
+  const [screen, setScreen] = useState<"home" | "practice">("home");
+  const [practicePuzzles, setPracticePuzzles] = useState<Partial<PuzzlesByMode>>({});
+  const [practiceLoadingMode, setPracticeLoadingMode] = useState<Mode | null>(null);
+  const [pendingPracticeMode, setPendingPracticeMode] = useState<Mode | null>(null);
+  const activePuzzles = useMemo(
+    () => ({ ...publishedPuzzles.puzzles, ...practicePuzzles }),
+    [practicePuzzles, publishedPuzzles.puzzles]
+  );
+  const game = useGame({ players: activePlayers, puzzles: activePuzzles });
+  const { loading, supabase, user } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
   const inGame = Boolean(game.mode && game.puzzle && game.state);
+  const dailyMode = publishedPuzzles.publishedModes[0] ?? null;
+
+  useEffect(() => {
+    if (!pendingPracticeMode || !practicePuzzles[pendingPracticeMode]) {
+      return;
+    }
+    game.startGame(pendingPracticeMode);
+    setPendingPracticeMode(null);
+    setScreen("home");
+  }, [game, pendingPracticeMode, practicePuzzles]);
+
+  function startDaily() {
+    if (dailyMode) {
+      game.startGame(dailyMode);
+    }
+  }
+
+  async function startPractice(mode: Mode) {
+    setPracticeLoadingMode(mode);
+    try {
+      const practicePuzzle = await loadRandomPracticePuzzle(supabase, mode);
+      if (!practicePuzzle) {
+        return;
+      }
+      setPracticePuzzles((current) => ({ ...current, [mode]: practicePuzzle }));
+      setPendingPracticeMode(mode);
+    } catch (error) {
+      console.warn("Unable to load practice puzzle from Supabase.", error);
+    } finally {
+      setPracticeLoadingMode(null);
+    }
+  }
 
   return (
     <main className="wrap">
@@ -40,8 +82,20 @@ export default function FootGridApp() {
         </button>
       </div>
       {showAccount ? <AuthPanel onClose={() => setShowAccount(false)} /> : null}
-      {!game.mode || !game.puzzle || !game.state ? (
-        <ModePicker onStart={game.startGame} />
+      {!game.mode || !game.puzzle || !game.state ? screen === "practice" ? (
+        <>
+          <button className="back-btn" onClick={() => setScreen("home")}>
+            ← Retour
+          </button>
+          <ModePicker loadingMode={practiceLoadingMode} onStart={startPractice} title="Entraînement" />
+        </>
+      ) : (
+        <HomeMenu
+          dailyMode={dailyMode}
+          loadingDaily={publishedPuzzles.loading}
+          onDaily={startDaily}
+          onPractice={() => setScreen("practice")}
+        />
       ) : (
         <section>
           <button className="back-btn" onClick={game.backToMenu}>

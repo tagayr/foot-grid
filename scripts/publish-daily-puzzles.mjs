@@ -1,11 +1,11 @@
 /**
- * Publish one generated draft puzzle per mode for a daily date.
+ * Publish one generated draft puzzle for a daily date.
  *
  * Usage:
  *   node scripts/publish-daily-puzzles.mjs --dry-run
- *   node scripts/publish-daily-puzzles.mjs --date 2026-05-12
- *   node scripts/publish-daily-puzzles.mjs --date 2026-05-12 --difficulty medium
- *   node scripts/publish-daily-puzzles.mjs --date 2026-05-12 --force
+ *   node scripts/publish-daily-puzzles.mjs --date 2026-05-12 --mode club_year
+ *   node scripts/publish-daily-puzzles.mjs --date 2026-05-12 --mode club_year --difficulty medium
+ *   node scripts/publish-daily-puzzles.mjs --date 2026-05-12 --mode club_year --force
  */
 
 import { readFileSync } from "node:fs";
@@ -21,6 +21,7 @@ const args = parseArgs(process.argv.slice(2));
 const DRY_RUN = Boolean(args["dry-run"]);
 const FORCE = Boolean(args.force);
 const PUZZLE_DATE = String(args.date ?? todayIsoDate());
+const MODE = normalizeMode(args.mode ? String(args.mode) : modeForDate(PUZZLE_DATE));
 const DIFFICULTY_ORDER = args.difficulty ? [String(args.difficulty)] : DEFAULT_DIFFICULTY_ORDER;
 
 validateDate(PUZZLE_DATE);
@@ -28,42 +29,33 @@ validateDifficulties(DIFFICULTY_ORDER);
 loadEnvFile(".env.local");
 
 const supabase = createAdminClient();
-const selections = [];
+const existing = await findPublishedDailyPuzzle(PUZZLE_DATE);
 
-for (const mode of MODES) {
-  const existing = await findPublishedPuzzle(mode, PUZZLE_DATE);
-  if (existing && !FORCE && DRY_RUN) {
-    selections.push({ mode, existing, draft: null, action: "skip_existing" });
-    continue;
-  }
+if (existing && !FORCE && !DRY_RUN) {
+  throw new Error(
+    `A published daily puzzle already exists for ${PUZZLE_DATE}: ${existing.id} (${existing.mode}). Use --force to archive and replace it.`
+  );
+}
 
-  if (existing && !FORCE) {
-    throw new Error(
-      `A published ${mode} puzzle already exists for ${PUZZLE_DATE}: ${existing.id}. Use --force to archive and replace it.`
-    );
-  }
-
-  const draft = await findDraftCandidate(mode, DIFFICULTY_ORDER);
+const draft = existing && !FORCE ? null : await findPracticeCandidate(MODE, DIFFICULTY_ORDER);
+if (!existing || FORCE) {
   if (!draft) {
-    throw new Error(`No generated draft candidate found for ${mode} with difficulty order: ${DIFFICULTY_ORDER.join(", ")}`);
+    throw new Error(`No generated practice candidate found for ${MODE} with difficulty order: ${DIFFICULTY_ORDER.join(", ")}`);
   }
-
-  selections.push({ mode, existing, draft, action: existing ? "replace" : "publish" });
 }
 
 console.log(JSON.stringify({
   date: PUZZLE_DATE,
+  mode: MODE,
   dryRun: DRY_RUN,
   force: FORCE,
   difficultyOrder: DIFFICULTY_ORDER,
-  selections: selections.map(({ mode, existing, draft }) => ({
-    mode,
-    existingPublishedId: existing?.id ?? null,
-    draftId: draft?.id ?? null,
-    seed: draft?.seed ?? null,
-    title: draft?.title ?? null,
-    difficulty: draft?.difficulty ?? null,
-  })),
+  existingPublishedId: existing?.id ?? null,
+  existingPublishedMode: existing?.mode ?? null,
+  draftId: draft?.id ?? null,
+  seed: draft?.seed ?? null,
+  title: draft?.title ?? null,
+  difficulty: draft?.difficulty ?? null,
 }, null, 2));
 
 if (DRY_RUN) {
@@ -71,54 +63,55 @@ if (DRY_RUN) {
   process.exit(0);
 }
 
-for (const { mode, existing, draft } of selections) {
-  if (!draft) {
-    console.log(`Skipped ${mode}; a published puzzle already exists for ${PUZZLE_DATE}.`);
-    continue;
-  }
-
-  if (existing) {
-    await updatePuzzle(existing.id, {
-      status: "archived",
-      published_at: null,
-    });
-    console.log(`Archived existing ${mode} puzzle ${existing.id}`);
-  }
-
-  await updatePuzzle(draft.id, {
-    status: "published",
-    puzzle_date: PUZZLE_DATE,
-    published_at: new Date().toISOString(),
-  });
-  console.log(`Published ${mode} puzzle ${draft.id} (${draft.seed}) for ${PUZZLE_DATE}`);
+if (existing && !FORCE) {
+  console.log(`Skipped; a published daily puzzle already exists for ${PUZZLE_DATE}.`);
+  process.exit(0);
 }
 
-console.log("\nDaily puzzles published.");
+if (existing) {
+  await updatePuzzle(existing.id, {
+    status: "archived",
+    published_at: null,
+  });
+  console.log(`Archived existing daily puzzle ${existing.id} (${existing.mode})`);
+}
 
-async function findPublishedPuzzle(mode, date) {
+await updatePuzzle(draft.id, {
+  kind: "daily",
+  status: "published",
+  puzzle_date: PUZZLE_DATE,
+  published_at: new Date().toISOString(),
+});
+console.log(`Published daily ${MODE} puzzle ${draft.id} (${draft.seed}) for ${PUZZLE_DATE}`);
+
+console.log("\nDaily puzzle published.");
+
+async function findPublishedDailyPuzzle(date) {
   const { data, error } = await supabase
     .from("puzzles")
     .select("id, mode, seed, title")
-    .eq("mode", mode)
+    .eq("kind", "daily")
     .eq("status", "published")
     .eq("puzzle_date", date)
     .maybeSingle();
-  throwIfError(error, `find published ${mode} puzzle`);
+  throwIfError(error, "find published daily puzzle");
   return data;
 }
 
-async function findDraftCandidate(mode, difficultyOrder) {
+async function findPracticeCandidate(mode, difficultyOrder) {
   for (const difficulty of difficultyOrder) {
     const { data, error } = await supabase
       .from("puzzles")
       .select("id, mode, seed, title, difficulty, created_at")
+      .eq("kind", "practice")
       .eq("mode", mode)
-      .eq("status", "draft")
+      .in("status", ["draft", "published"])
+      .is("puzzle_date", null)
       .like("seed", `${SEED_PREFIX}-${mode}-${difficulty}-%`)
       .order("difficulty", { ascending: true })
       .order("created_at", { ascending: true })
       .limit(1);
-    throwIfError(error, `find ${difficulty} draft for ${mode}`);
+    throwIfError(error, `find ${difficulty} practice candidate for ${mode}`);
 
     if (data?.length) {
       return data[0];
@@ -175,6 +168,19 @@ function validateDifficulties(difficulties) {
       throw new Error(`Invalid --difficulty value: ${difficulty}. Expected easy, medium, or hard.`);
     }
   }
+}
+
+function normalizeMode(mode) {
+  if (mode === "cc") return "club_club";
+  if (mode === "ca") return "club_year";
+  if (mode === "cs") return "club_nationality";
+  if (MODES.includes(mode)) return mode;
+  throw new Error(`Invalid --mode value: ${mode}. Expected club_club, club_year, club_nationality, cc, ca, or cs.`);
+}
+
+function modeForDate(date) {
+  const day = Math.floor(Date.parse(`${date}T00:00:00.000Z`) / 86400000);
+  return MODES[day % MODES.length];
 }
 
 function createAdminClient() {

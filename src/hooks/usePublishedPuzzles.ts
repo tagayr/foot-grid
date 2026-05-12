@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import type { PuzzlesByMode } from "@/game/types";
 
 type UsePublishedPuzzlesResult = {
+  publishedModes: Array<keyof PuzzlesByMode>;
   loading: boolean;
   puzzles: PuzzlesByMode;
   source: "local" | "supabase";
@@ -54,7 +55,7 @@ export function usePublishedPuzzles(fallbackPuzzles: PuzzlesByMode, date = today
     [fallbackPuzzles, remotePuzzles]
   );
 
-  return { loading, puzzles, source };
+  return { loading, publishedModes: Object.keys(remotePuzzles) as Array<keyof PuzzlesByMode>, puzzles, source };
 }
 
 function todayIsoDate() {

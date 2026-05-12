@@ -5,6 +5,7 @@ export type Database = {
     Enums: {
       attempt_status: "in_progress" | "completed" | "failed" | "abandoned";
       data_snapshot_status: "importing" | "active" | "archived" | "failed";
+      puzzle_kind: "daily" | "practice";
       puzzle_mode: "club_club" | "club_year" | "club_nationality";
       puzzle_status: "draft" | "scheduled" | "published" | "archived";
     };
@@ -445,6 +446,7 @@ export type Database = {
           difficulty: number | null;
           generated_at: string | null;
           id: string;
+          kind: Database["public"]["Enums"]["puzzle_kind"];
           mode: Database["public"]["Enums"]["puzzle_mode"];
           published_at: string | null;
           puzzle_date: string | null;
@@ -459,6 +461,7 @@ export type Database = {
           difficulty?: number | null;
           generated_at?: string | null;
           id?: string;
+          kind?: Database["public"]["Enums"]["puzzle_kind"];
           mode: Database["public"]["Enums"]["puzzle_mode"];
           published_at?: string | null;
           puzzle_date?: string | null;
@@ -473,6 +476,7 @@ export type Database = {
           difficulty?: number | null;
           generated_at?: string | null;
           id?: string;
+          kind?: Database["public"]["Enums"]["puzzle_kind"];
           mode?: Database["public"]["Enums"]["puzzle_mode"];
           published_at?: string | null;
           puzzle_date?: string | null;

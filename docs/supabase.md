@@ -23,9 +23,19 @@ The schema migrations live in:
 ```txt
 supabase/migrations/20260508190000_initial_schema.sql
 supabase/migrations/20260508203000_add_data_snapshots.sql
+supabase/migrations/20260512132000_add_puzzle_kind.sql
 ```
 
 Apply them from the Supabase dashboard SQL editor in filename order, or install the Supabase CLI and run them as migrations once the project is linked.
+
+After applying `20260512132000_add_puzzle_kind.sql`, populate the new daily/practice model:
+
+```bash
+npm run db:publish:practice
+npm run db:publish:daily -- --date 2026-05-12
+```
+
+`db:publish:daily` publishes one ranked daily puzzle. Use `--mode club_club`, `--mode club_year`, or `--mode club_nationality` to choose a mode explicitly; otherwise the script rotates by date.
 
 ## Data snapshots
 
