@@ -7,6 +7,9 @@ import AuthPanel from "./auth/AuthPanel";
 import { useAuth } from "./auth/AuthProvider";
 import type { Mode, Player, PuzzlesByMode } from "@/game/types";
 import { loadRandomPracticePuzzle } from "@/lib/puzzles/loadPublishedPuzzles";
+import DailyLeaderboard from "@/components/leaderboard/DailyLeaderboard";
+import { useDailyAttempt } from "@/hooks/useDailyAttempt";
+import { useDailyLeaderboard } from "@/hooks/useDailyLeaderboard";
 import { useGame } from "@/hooks/useGame";
 import { usePublishedPuzzles } from "@/hooks/usePublishedPuzzles";
 import { useSupabasePlayers } from "@/hooks/useSupabasePlayers";
@@ -27,18 +30,23 @@ export default function FootGridApp() {
   const supabasePlayers = useSupabasePlayers(publishedPuzzles.source === "supabase");
   const activePlayers = publishedPuzzles.source === "supabase" && supabasePlayers.players.length ? supabasePlayers.players : players;
   const [screen, setScreen] = useState<"home" | "practice">("home");
+  const [playKind, setPlayKind] = useState<"daily" | "practice" | null>(null);
   const [practicePuzzles, setPracticePuzzles] = useState<Partial<PuzzlesByMode>>({});
   const [practiceLoadingMode, setPracticeLoadingMode] = useState<Mode | null>(null);
   const [pendingPracticeMode, setPendingPracticeMode] = useState<Mode | null>(null);
+  const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
   const activePuzzles = useMemo(
     () => ({ ...publishedPuzzles.puzzles, ...practicePuzzles }),
     [practicePuzzles, publishedPuzzles.puzzles]
   );
   const game = useGame({ players: activePlayers, puzzles: activePuzzles });
+  const dailyAttempt = useDailyAttempt();
   const { loading, supabase, user } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
   const inGame = Boolean(game.mode && game.puzzle && game.state);
   const dailyMode = publishedPuzzles.publishedModes[0] ?? null;
+  const dailyPuzzleId = dailyMode ? publishedPuzzles.puzzles[dailyMode]?.id : undefined;
+  const leaderboard = useDailyLeaderboard(dailyPuzzleId, leaderboardRefreshKey);
 
   useEffect(() => {
     if (!pendingPracticeMode || !practicePuzzles[pendingPracticeMode]) {
@@ -49,10 +57,37 @@ export default function FootGridApp() {
     setScreen("home");
   }, [game, pendingPracticeMode, practicePuzzles]);
 
-  function startDaily() {
-    if (dailyMode) {
-      game.startGame(dailyMode);
+  useEffect(() => {
+    if (playKind !== "daily" || !game.puzzle?.id || !game.state?.termine) {
+      return;
     }
+
+    void dailyAttempt
+      .completeAttempt({
+        errorCount: game.state.erreurs,
+        foundCount: game.state.trouves,
+        puzzleId: game.puzzle.id,
+        score: game.score
+      })
+      .then((attempt) => {
+        if (attempt) {
+          setLeaderboardRefreshKey((value) => value + 1);
+        }
+      })
+      .catch((error) => console.warn("Unable to submit ranked daily attempt.", error));
+  }, [dailyAttempt, game.puzzle?.id, game.score, game.state?.erreurs, game.state?.termine, game.state?.trouves, playKind]);
+
+  async function startDaily() {
+    if (!dailyMode || !dailyPuzzleId) {
+      return;
+    }
+
+    if (user) {
+      await dailyAttempt.startAttempt(dailyPuzzleId);
+    }
+
+    setPlayKind("daily");
+    game.startGame(dailyMode);
   }
 
   async function startPractice(mode: Mode) {
@@ -64,6 +99,7 @@ export default function FootGridApp() {
       }
       setPracticePuzzles((current) => ({ ...current, [mode]: practicePuzzle }));
       setPendingPracticeMode(mode);
+      setPlayKind("practice");
     } catch (error) {
       console.warn("Unable to load practice puzzle from Supabase.", error);
     } finally {
@@ -92,7 +128,7 @@ export default function FootGridApp() {
       ) : (
         <HomeMenu
           dailyMode={dailyMode}
-          loadingDaily={publishedPuzzles.loading}
+          loadingDaily={publishedPuzzles.loading || dailyAttempt.loading}
           onDaily={startDaily}
           onPractice={() => setScreen("practice")}
         />
@@ -115,6 +151,7 @@ export default function FootGridApp() {
               onBackToMenu={game.backToMenu}
             />
           ) : null}
+          {playKind === "daily" ? <DailyLeaderboard loading={leaderboard.loading} rows={leaderboard.rows} /> : null}
         </section>
       )}
       {game.activeCell ? (

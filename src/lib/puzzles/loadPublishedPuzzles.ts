@@ -206,6 +206,7 @@ function adaptPuzzle({
   }
 
   return {
+    id: puzzleId,
     rows,
     cols,
     rowType,

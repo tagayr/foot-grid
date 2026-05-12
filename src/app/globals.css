@@ -495,6 +495,66 @@ header {
   white-space: nowrap;
 }
 
+.leaderboard {
+  border: 1px solid var(--gris);
+  background: #0a0f0a;
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.leaderboard-title {
+  color: var(--or);
+  font-family: var(--font-barlow-condensed), sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.leaderboard-empty {
+  color: var(--gris-clair);
+  font-size: 13px;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 42px 1fr 54px 46px;
+  align-items: center;
+  gap: 8px;
+  color: var(--gris-clair);
+  font-size: 13px;
+}
+
+.leaderboard-rank,
+.leaderboard-score,
+.leaderboard-time {
+  font-family: var(--font-barlow-condensed), sans-serif;
+  font-weight: 700;
+}
+
+.leaderboard-rank {
+  color: var(--or);
+}
+
+.leaderboard-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-score,
+.leaderboard-time {
+  color: var(--blanc);
+  text-align: right;
+}
+
 .errors-row {
   display: flex;
   gap: 6px;

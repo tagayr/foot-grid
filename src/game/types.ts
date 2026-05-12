@@ -16,6 +16,7 @@ export type Player = {
 };
 
 export type Puzzle = {
+  id?: string;
   rows: Array<string | number>;
   cols: Array<string | number>;
   rowType: AxisType;

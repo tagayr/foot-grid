@@ -31,6 +31,8 @@ Implemented:
 - prototype Supabase seed script
 - published-puzzle loader from Supabase with local fallback
 - Supabase player search data for published Supabase puzzles
+- ranked daily attempt API routes and daily leaderboard display
+- daily/practice home split with random practice puzzle loading
 - draft player import, puzzle generation, and generated-grid import scripts for a Big 5 dataset
 - basic tests for validation, search, and scoring
 
@@ -51,16 +53,16 @@ Important files:
 
 ## Current Limitations
 
-- Daily attempts are not yet persisted.
-- Leaderboards are not yet shown in the UI.
-- The game still validates live answers mostly client-side.
+- Ranked daily attempts are persisted for logged-in users.
+- A first-pass daily leaderboard is shown for the daily puzzle.
+- The game still validates live answers mostly client-side, and final ranked score submission is not yet fully recomputed server-side.
 - The player database is prototype data and should not be treated as production-quality.
-- Random grid play is not implemented in the app.
+- Practice mode is implemented, but logged-in practice history/stats are not persisted yet.
 - Puzzle generation depends on local ignored source/artifact files under `data/`, so a fresh checkout still needs `data/players_all.json` before it can reproduce the pipeline.
 - Generated puzzle candidates have been imported to Supabase as drafts; the next model publishes one ranked daily puzzle per date and uses the rest as practice.
 - There is a manual publish script, but not yet an admin review UI or recurring scheduler.
 - Supabase player search currently loads display names only; richer player metadata and server-side search can come later.
-- Daily vs practice mode is implemented in code, pending application of `supabase/migrations/20260512132000_add_puzzle_kind.sql` in Supabase.
+- Ranked daily attempts are persisted for logged-in users, but answer-by-answer persistence and anti-cheat hardening are still future work.
 - Supabase types are manually maintained for now.
 - The old `index.html`, `players_raw.json`, and `players_clean.json` still exist as prototype/reference artifacts.
 
@@ -70,15 +72,19 @@ Important files:
 
 Goal: logged-in users can play today's grid once for ranking.
 
+**Status: first pass implemented.**
+
 Tasks:
 
-- Add server-side action or route handler to create/resume a daily attempt.
-- Record `started_at` from the server, not from the client.
-- Add final result submission.
-- Compute score and duration on the trusted side.
-- Enforce one ranked attempt per user per daily puzzle.
-- Add client states: not started, in progress, completed, already played.
-- Decide whether answers are submitted one by one or only at the end.
+- [x] Add server-side route handler to create/resume a daily attempt.
+- [x] Record `started_at` from the server, not from the client.
+- [x] Add final result submission.
+- [x] Compute duration on the trusted side.
+- [x] Enforce one ranked attempt per user per daily puzzle.
+- [ ] Move score/found/error computation fully server-side.
+- [ ] Persist submitted answers in `daily_attempt_answers`.
+- [ ] Add richer client states: not started, in progress, completed, already played.
+- [x] Decide whether answers are submitted one by one or only at the end. First pass submits only at the end.
 
 Suggested owner: backend/game logic.
 
@@ -99,11 +105,13 @@ Acceptance criteria:
 
 Goal: users can see today's ranking and streak rankings.
 
+**Status: first pass daily leaderboard implemented.**
+
 Tasks:
 
-- Fetch `daily_leaderboard` for today's puzzle.
+- [x] Fetch `daily_leaderboard` for today's puzzle.
 - Fetch `streak_leaderboard`.
-- Add leaderboard UI sections.
+- [x] Add daily leaderboard UI section.
 - Add "my rank" treatment.
 - Decide pagination or top-N display.
 - Add empty/loading/error states.
@@ -148,17 +156,21 @@ Acceptance criteria:
 - User can see their own history.
 - Profile data survives logout/login.
 
-### 4. Random Grid Mode
+### 4. Practice Mode
 
-Goal: a user can play a random grid separately from the ranked daily challenge.
+Goal: a user can play random practice grids separately from the ranked daily challenge.
+
+**Status: first pass implemented.**
 
 Tasks:
 
-- Add home/menu split: "Play today's grid" and "Random grid".
-- Add mode picker for random: club x club, club x year, club x nationality, surprise me.
-- Decide whether random grids are generated on demand or selected from a pre-generated pool.
+- [x] Add home/menu split: "Daily puzzle" and "Practice".
+- [x] Add mode picker for practice: club x club, club x year, club x nationality.
+- [x] Select practice grids from the pre-generated published practice pool.
+- [ ] Exclude puzzles the logged-in user has already completed.
+- [ ] Add practice stats: puzzles played, average correct answers, average duration, min/max duration, per mode.
 - Store optional `random_attempts`.
-- Keep random play from affecting daily streaks.
+- [x] Keep practice play from affecting daily leaderboard/streaks.
 
 Suggested owner: frontend/game loop.
 
@@ -192,7 +204,7 @@ Done:
 - [x] Daily/practice home split in the frontend.
 - [x] `puzzle_kind` migration prepared for Supabase.
 - [x] Imported current generated candidates into Supabase: 722 draft puzzles, 6 498 cells, and 13 110 accepted answers.
-- [x] Previously published one generated medium puzzle per mode for 2026-05-12 before the daily/practice split; this should be normalized after the migration is applied.
+- [x] Published one generated daily puzzle and the generated practice pool under the daily/practice model.
 - [x] `docs/puzzle-generation.md` — documents Clement's current pipeline assumptions, commands, and reported generation results.
 - [x] `package.json` commands for player import, puzzle generation, generated-grid import, and daily publishing.
 
@@ -207,7 +219,6 @@ Important current caveats:
 Remaining tasks:
 
 - [ ] Reconcile difficulty docs with code thresholds and decide the first production calibration.
-- [ ] Apply `20260512132000_add_puzzle_kind.sql` to Supabase, then publish the practice pool and one daily puzzle under the new model.
 - [ ] Decide whether production generation reads directly from Supabase snapshots or from generated local data files.
 - [ ] Improve player search with richer Supabase metadata, ranking, and server-side filtering if the dataset grows.
 - [ ] Build admin review UI or a safer scheduling workflow for selecting future daily puzzles.
