@@ -8,12 +8,13 @@ import type { ActiveCell } from "./types";
 
 type SearchModalProps = {
   activeCell: ActiveCell;
+  loading?: boolean;
   players: Player[];
   onClose: () => void;
   onSelect: (name: string) => void;
 };
 
-export default function SearchModal({ activeCell, players, onClose, onSelect }: SearchModalProps) {
+export default function SearchModal({ activeCell, loading = false, players, onClose, onSelect }: SearchModalProps) {
   const [query, setQuery] = useState("");
   const matches = searchPlayers(players, query);
   const rowLabel = formatCellHint(activeCell.row, activeCell.rowType);
@@ -37,7 +38,8 @@ export default function SearchModal({ activeCell, players, onClose, onSelect }: 
           onChange={(event) => setQuery(event.target.value)}
         />
         <div className="suggestions">
-          {query.length >= 2 && matches.length === 0 ? <div className="no-results">Aucun joueur trouvé...</div> : null}
+          {query.length >= 2 && loading ? <div className="no-results">Chargement des joueurs...</div> : null}
+          {query.length >= 2 && !loading && matches.length === 0 ? <div className="no-results">Aucun joueur trouvé...</div> : null}
           {matches.map((player) => (
             <button key={player.nom} className="sug-item" onClick={() => onSelect(player.nom)}>
               <span className="sug-name">{player.nom}</span>

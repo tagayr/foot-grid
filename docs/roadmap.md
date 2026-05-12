@@ -30,6 +30,7 @@ Implemented:
 - data source and data snapshot model
 - prototype Supabase seed script
 - published-puzzle loader from Supabase with local fallback
+- Supabase player search data for published Supabase puzzles
 - draft player import, puzzle generation, and generated-grid import scripts for a Big 5 dataset
 - basic tests for validation, search, and scoring
 
@@ -46,6 +47,7 @@ Important files:
 - Draft player importer: `scripts/import-players.mjs`
 - Draft puzzle generator: `scripts/generate-puzzles.mjs`
 - Draft generated-grid importer: `scripts/import-generated-grids.mjs`
+- Daily publish script: `scripts/publish-daily-puzzles.mjs`
 
 ## Current Limitations
 
@@ -55,8 +57,9 @@ Important files:
 - The player database is prototype data and should not be treated as production-quality.
 - Random grid play is not implemented in the app.
 - Puzzle generation depends on local ignored source/artifact files under `data/`, so a fresh checkout still needs `data/players_all.json` before it can reproduce the pipeline.
-- Generated puzzle candidates have been imported to Supabase as drafts, but there is not yet an admin review/publish workflow.
-- The app only loads published puzzles for a date, so draft generated candidates are not visible in the game until one is published or scheduled.
+- Generated puzzle candidates have been imported to Supabase as drafts, and one generated puzzle per mode has been published for 2026-05-12.
+- There is a manual publish script, but not yet an admin review UI or recurring scheduler.
+- Supabase player search currently loads display names only; richer player metadata and server-side search can come later.
 - Supabase types are manually maintained for now.
 - The old `index.html`, `players_raw.json`, and `players_clean.json` still exist as prototype/reference artifacts.
 
@@ -182,9 +185,12 @@ Done:
 - [x] `scripts/import-players.mjs` — draft importer for a Big 5 `players_all.json` dataset into Supabase.
 - [x] `scripts/generate-puzzles.mjs` — draft generator that computes valid cells for all three modes, scores difficulty, and assembles non-overlapping 3x3 grids.
 - [x] `scripts/import-generated-grids.mjs` — imports generated candidates into Supabase as draft puzzles with axes, cells, and accepted answers.
+- [x] `scripts/publish-daily-puzzles.mjs` — publishes one generated draft per mode for a selected date.
+- [x] `useSupabasePlayers` — loads Supabase player names for search when published Supabase puzzles are active.
 - [x] Imported current generated candidates into Supabase: 722 draft puzzles, 6 498 cells, and 13 110 accepted answers.
+- [x] Published one generated medium puzzle per mode for 2026-05-12.
 - [x] `docs/puzzle-generation.md` — documents Clement's current pipeline assumptions, commands, and reported generation results.
-- [x] `package.json` commands for player import, puzzle generation, and generated-grid import.
+- [x] `package.json` commands for player import, puzzle generation, generated-grid import, and daily publishing.
 
 Important current caveats:
 
@@ -198,6 +204,8 @@ Remaining tasks:
 
 - [ ] Reconcile difficulty docs with code thresholds and decide the first production calibration.
 - [ ] Decide whether production generation reads directly from Supabase snapshots or from generated local data files.
+- [ ] Improve player search with richer Supabase metadata, ranking, and server-side filtering if the dataset grows.
+- [ ] Build admin review UI or a safer scheduling workflow for selecting future daily puzzles.
 - [ ] Add a command for scheduled/CI use (GitHub Actions nightly run).
 - [ ] Validate generated grids manually before scheduling as daily puzzles.
 

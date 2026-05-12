@@ -12,6 +12,7 @@ The generation pipeline transforms the player database into ready-to-use 3×3 gr
 | `scripts/import-players.mjs` | Imports `players_all.json` into Supabase (`players`, `clubs`, `countries`, `career_spells`) |
 | `scripts/generate-puzzles.mjs` | Generates all valid cells and assembles grids — outputs to `data/` |
 | `scripts/import-generated-grids.mjs` | Imports generated grids to Supabase as draft puzzles |
+| `scripts/publish-daily-puzzles.mjs` | Publishes one generated draft per mode for a selected date |
 | `data/puzzle-cells.json` | All valid axis pairs with solutions and difficulty (≈3 MB) |
 | `data/generated-grids.json` | Assembled 3×3 grids grouped by mode and difficulty (≈1.5 MB) |
 
@@ -30,6 +31,10 @@ node scripts/generate-puzzles.mjs --dry-run  # print stats, write nothing
 # Step 3 — import generated candidates as draft Supabase puzzles
 node scripts/import-generated-grids.mjs
 node scripts/import-generated-grids.mjs --dry-run
+
+# Step 4 — publish one generated draft per mode for a date
+node scripts/publish-daily-puzzles.mjs --date 2026-05-12
+node scripts/publish-daily-puzzles.mjs --dry-run
 ```
 
 ## Game modes
@@ -95,10 +100,17 @@ Thresholds currently used by `scripts/generate-puzzles.mjs`: rank ≤ 200, ≤ 1
 
 The current generated set has been imported to Supabase as **722 draft puzzles**, with **6 498 puzzle cells** and **13 110 accepted answers**.
 
+For **2026-05-12**, one medium generated puzzle per mode has been published:
+
+- `club_club`: `transfermarkt-big5-v1-generated-club_club-medium-0002`
+- `club_year`: `transfermarkt-big5-v1-generated-club_year-medium-0007`
+- `club_nationality`: `transfermarkt-big5-v1-generated-club_nationality-medium-0011`
+
 ## Known limitations and next steps
 
 1. **Admin review**: generated grids should be reviewed before being scheduled as daily puzzles (see roadmap §6).
-2. **Publish/schedule flow**: drafts are in Supabase, but there is not yet a UI or script to publish one for a specific date.
+2. **Publish/schedule flow**: there is a script to publish one day manually, but no admin UI or recurring scheduler yet.
 3. **Data coverage**: the current snapshot covers only Big 5 league seasons scraped from Transfermarkt. Historical data (pre-2020) and loan spells may be incomplete.
 4. **Year-range mode balance**: the `club_year` mode produces fewer grids because many clubs only appear in a small number of year windows. Expanding the player database (longer history) would improve coverage.
 5. **Snapshot semantics**: the player importer still needs a review so future provider imports preserve historical reproducibility cleanly.
+6. **Frontend player search**: published Supabase puzzles now use Supabase player names for search, but the current client loads display names only. Add richer metadata/ranking or server-side filtering when the dataset grows.

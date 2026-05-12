@@ -8,6 +8,7 @@ import { useAuth } from "./auth/AuthProvider";
 import type { Player, PuzzlesByMode } from "@/game/types";
 import { useGame } from "@/hooks/useGame";
 import { usePublishedPuzzles } from "@/hooks/usePublishedPuzzles";
+import { useSupabasePlayers } from "@/hooks/useSupabasePlayers";
 import EndScreen from "./game/EndScreen";
 import ErrorsRow from "./game/ErrorsRow";
 import GameGrid from "./game/GameGrid";
@@ -21,7 +22,9 @@ const puzzles = puzzlesData as PuzzlesByMode;
 
 export default function FootGridApp() {
   const publishedPuzzles = usePublishedPuzzles(puzzles);
-  const game = useGame({ players, puzzles: publishedPuzzles.puzzles });
+  const supabasePlayers = useSupabasePlayers(publishedPuzzles.source === "supabase");
+  const activePlayers = publishedPuzzles.source === "supabase" && supabasePlayers.players.length ? supabasePlayers.players : players;
+  const game = useGame({ players: activePlayers, puzzles: publishedPuzzles.puzzles });
   const { loading, user } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
   const inGame = Boolean(game.mode && game.puzzle && game.state);
@@ -63,7 +66,8 @@ export default function FootGridApp() {
       {game.activeCell ? (
         <SearchModal
           activeCell={game.activeCell}
-          players={players}
+          loading={publishedPuzzles.source === "supabase" && supabasePlayers.loading}
+          players={activePlayers}
           onClose={game.closeModal}
           onSelect={game.selectPlayer}
         />

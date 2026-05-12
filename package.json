@@ -19,6 +19,8 @@
     "db:generate:puzzles:dry-run": "node scripts/generate-puzzles.mjs --dry-run",
     "db:import:generated-grids": "node scripts/import-generated-grids.mjs",
     "db:import:generated-grids:dry-run": "node scripts/import-generated-grids.mjs --dry-run",
+    "db:publish:daily": "node scripts/publish-daily-puzzles.mjs",
+    "db:publish:daily:dry-run": "node scripts/publish-daily-puzzles.mjs --dry-run",
     "verify": "npm run generate:data && npm run test && npm run build"
   },
   "dependencies": {
