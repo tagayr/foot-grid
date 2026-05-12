@@ -138,7 +138,11 @@ export function useGame({ players, puzzles }: UseGameInput) {
       } catch (_) {}
     }
 
-    await navigator.clipboard?.writeText(text);
+    try {
+      await navigator.clipboard?.writeText(text);
+    } catch (error) {
+      console.warn("Unable to copy share text to clipboard.", error);
+    }
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
 
