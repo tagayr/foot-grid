@@ -33,6 +33,7 @@ Implemented:
 - Supabase player search data for published Supabase puzzles
 - ranked daily attempt API routes and daily leaderboard display
 - daily/practice home split with random practice puzzle loading
+- logged-in practice attempt persistence and account practice stats
 - draft player import, puzzle generation, and generated-grid import scripts for a Big 5 dataset
 - basic tests for validation, search, and scoring
 
@@ -57,12 +58,12 @@ Important files:
 - A first-pass daily leaderboard is shown for the daily puzzle.
 - The game still gives immediate client-side feedback, but ranked completion is recomputed server-side from submitted answers and Supabase accepted answers.
 - The player database is prototype data and should not be treated as production-quality.
-- Practice mode is implemented, but logged-in practice history/stats are not persisted yet.
+- Practice history and stats are persisted for logged-in users, but practice selection does not yet exclude puzzles already completed by that user.
 - Puzzle generation depends on local ignored source/artifact files under `data/`, so a fresh checkout still needs `data/players_all.json` before it can reproduce the pipeline.
 - Generated puzzle candidates have been imported to Supabase as drafts; the next model publishes one ranked daily puzzle per date and uses the rest as practice.
 - There is a manual publish script, but not yet an admin review UI or recurring scheduler.
 - Supabase player search currently loads display names only; richer player metadata and server-side search can come later.
-- Ranked daily attempts are persisted for logged-in users, with server-side score verification and one stored answer row per attempted cell.
+- Ranked daily and practice attempts are persisted for logged-in users, with server-side score verification. Daily attempts store one final answer row per attempted cell; practice attempts currently store aggregate result fields only.
 - Supabase types are manually maintained for now.
 - The old `index.html`, `players_raw.json`, and `players_clean.json` still exist as prototype/reference artifacts.
 
@@ -137,9 +138,10 @@ Goal: the account panel becomes a real user area.
 
 Tasks:
 
-- Add profile editing: username, display name.
-- Add user's recent daily results.
-- Add streak display.
+- [x] Add profile editing: username, display name.
+- [x] Add user's recent daily results.
+- [x] Add streak display.
+- [x] Add practice aggregate stats.
 - Add account state for email confirmation and logged-out view.
 - Add RLS-safe update policies if needed.
 
@@ -169,8 +171,9 @@ Tasks:
 - [x] Add mode picker for practice: club x club, club x year, club x nationality.
 - [x] Select practice grids from the pre-generated published practice pool.
 - [ ] Exclude puzzles the logged-in user has already completed.
-- [ ] Add practice stats: puzzles played, average correct answers, average duration, min/max duration, per mode.
-- Store optional `random_attempts`.
+- [x] Add practice stats: puzzles played, average correct answers, average duration, per mode.
+- [x] Store optional `random_attempts`.
+- [ ] Add richer practice stats: min/max duration, recent practice results, and trend/history views.
 - [x] Keep practice play from affecting daily leaderboard/streaks.
 
 Suggested owner: frontend/game loop.
@@ -185,6 +188,8 @@ Primary files:
 Acceptance criteria:
 
 - Daily and random modes are clearly separated.
+- Logged-in practice completions create `random_attempts` rows.
+- Account space shows aggregate practice stats.
 - Random play does not pollute daily leaderboard.
 - Random grid has at least one valid answer per cell.
 

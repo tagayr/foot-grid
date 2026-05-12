@@ -12,6 +12,7 @@ import DailyLeaderboard from "@/components/leaderboard/DailyLeaderboard";
 import { useDailyAttempt } from "@/hooks/useDailyAttempt";
 import { useDailyLeaderboard } from "@/hooks/useDailyLeaderboard";
 import { useGame } from "@/hooks/useGame";
+import { usePracticeAttempt } from "@/hooks/usePracticeAttempt";
 import { usePublishedPuzzles } from "@/hooks/usePublishedPuzzles";
 import { useSupabasePlayers } from "@/hooks/useSupabasePlayers";
 import EndScreen from "./game/EndScreen";
@@ -42,6 +43,7 @@ export default function FootGridApp() {
   );
   const game = useGame({ players: activePlayers, puzzles: activePuzzles });
   const dailyAttempt = useDailyAttempt();
+  const practiceAttempt = usePracticeAttempt();
   const { loading, supabase, user } = useAuth();
   const [showAccount, setShowAccount] = useState(false);
   const inGame = Boolean(game.mode && game.puzzle && game.state);
@@ -59,38 +61,49 @@ export default function FootGridApp() {
   }, [game, pendingPracticeMode, practicePuzzles]);
 
   useEffect(() => {
-    if (playKind !== "daily" || !game.puzzle?.id || !game.state?.termine) {
+    if (!user || !game.puzzle?.id || !game.state?.termine) {
       return;
     }
 
-    void dailyAttempt
-      .completeAttempt({
-        answers: game.state.submissions
-          .map((submission) => {
-            const key = submission.key;
-            const rowPosition = game.puzzle?.rows.findIndex((row) =>
-              game.puzzle?.cols.some((col) => cellKey(row, col) === key)
-            ) ?? -1;
-            const colPosition = game.puzzle?.cols.findIndex((col) =>
-              game.puzzle?.rows.some((row) => cellKey(row, col) === key)
-            ) ?? -1;
-            return {
-              colPosition,
-              playerName: submission.playerName,
-              rowPosition
-            };
-          })
-          .filter((answer) => answer.rowPosition >= 0 && answer.colPosition >= 0),
-        gaveUp: game.state.trouves < 9 && game.state.erreurs < 4,
-        puzzleId: game.puzzle.id,
-      })
-      .then((attempt) => {
-        if (attempt) {
-          setLeaderboardRefreshKey((value) => value + 1);
-        }
-      })
-      .catch((error) => console.warn("Unable to submit ranked daily attempt.", error));
-  }, [dailyAttempt, game.puzzle?.id, game.score, game.state?.erreurs, game.state?.termine, game.state?.trouves, playKind]);
+    const completion = {
+      answers: game.state.submissions
+        .map((submission) => {
+          const key = submission.key;
+          const rowPosition = game.puzzle?.rows.findIndex((row) =>
+            game.puzzle?.cols.some((col) => cellKey(row, col) === key)
+          ) ?? -1;
+          const colPosition = game.puzzle?.cols.findIndex((col) =>
+            game.puzzle?.rows.some((row) => cellKey(row, col) === key)
+          ) ?? -1;
+          return {
+            colPosition,
+            playerName: submission.playerName,
+            rowPosition
+          };
+        })
+        .filter((answer) => answer.rowPosition >= 0 && answer.colPosition >= 0),
+      gaveUp: game.state.trouves < 9 && game.state.erreurs < 4,
+      puzzleId: game.puzzle.id
+    };
+
+    if (playKind === "daily") {
+      void dailyAttempt
+        .completeAttempt(completion)
+        .then((attempt) => {
+          if (attempt) {
+            setLeaderboardRefreshKey((value) => value + 1);
+          }
+        })
+        .catch((error) => console.warn("Unable to submit ranked daily attempt.", error));
+      return;
+    }
+
+    if (playKind === "practice") {
+      void practiceAttempt
+        .completeAttempt(completion)
+        .catch((error) => console.warn("Unable to submit practice attempt.", error));
+    }
+  }, [dailyAttempt, game.puzzle, game.state, playKind, practiceAttempt, user]);
 
   async function startDaily() {
     if (!dailyMode || !dailyPuzzleId) {
@@ -111,6 +124,9 @@ export default function FootGridApp() {
       const practicePuzzle = await loadRandomPracticePuzzle(supabase, mode);
       if (!practicePuzzle) {
         return;
+      }
+      if (user && practicePuzzle.id) {
+        await practiceAttempt.startAttempt(practicePuzzle.id);
       }
       setPracticePuzzles((current) => ({ ...current, [mode]: practicePuzzle }));
       setPendingPracticeMode(mode);
