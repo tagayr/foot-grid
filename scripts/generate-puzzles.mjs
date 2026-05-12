@@ -29,8 +29,13 @@ for (let y = 1994; y <= 2024; y += 2) {
   YEAR_RANGES.push({ start: y, end: y + 1, label: `${y}-${String(y + 1).slice(2)}` });
 }
 
-// Difficulty thresholds (based on best fame rank among cell solutions)
-const FAME_THRESHOLDS = { 1: 20, 2: 50, 3: 100 }; // rank <= threshold → level
+// Difficulty thresholds based on Transfermarkt rang_mondial.
+// Calibrated on the Big 5 dataset (2274 ranked players, ranks up to ~7000+):
+//   top 5%  ≈ rank ≤ 100  → level 1 (stars recognizable by any fan)
+//   top 20% ≈ rank ≤ 500  → level 2 (well-known in their league)
+//   top 33% ≈ rank ≤ 1000 → level 3 (regular starters)
+//   beyond             → level 4 (obscure / squad depth)
+const FAME_THRESHOLDS = { 1: 100, 2: 500, 3: 1000 };
 
 // Axis filters: skip axes with too few players (avoids obscure clubs)
 const MIN_PLAYERS_PER_CLUB = 3;
@@ -88,17 +93,26 @@ console.log(`Grids written to ${GRIDS_OUTPUT}`);
 // ─── Fame ranking ──────────────────────────────────────────────────────────────
 
 function computeFameRanks(players) {
-  const scores = players.map((p) => {
-    const totalSeasons = p.carriere.reduce(
-      (sum, spell) => sum + (spell.annee_fin ?? CURRENT_YEAR) - spell.annee_debut,
-      0
-    );
-    return { id: p.id, score: totalSeasons };
-  });
-  scores.sort((a, b) => b.score - a.score);
-  const ranks = new Map();
-  scores.forEach(({ id }, i) => ranks.set(id, i + 1));
-  return ranks;
+  // Primary: rang_mondial (Transfermarkt world ranking).
+  // Fallback for unranked players: valeur_marchande, then career span.
+  const fameRanks = new Map();
+  const withRank = players.filter((p) => p.rang_mondial != null);
+  const withoutRank = players.filter((p) => p.rang_mondial == null);
+
+  for (const p of withRank) fameRanks.set(p.id, p.rang_mondial);
+
+  const maxRealRank = withRank.length ? Math.max(...withRank.map((p) => p.rang_mondial)) : 0;
+  withoutRank
+    .map((p) => ({
+      id: p.id,
+      score: p.valeur_marchande ?? p.carriere.reduce(
+        (sum, s) => sum + (s.annee_fin ?? CURRENT_YEAR) - s.annee_debut, 0
+      ),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .forEach(({ id }, i) => fameRanks.set(id, maxRealRank + i + 1));
+
+  return fameRanks;
 }
 
 function cellDifficulty(solutions, fameRanks) {

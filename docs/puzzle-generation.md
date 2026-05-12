@@ -52,12 +52,12 @@ Each cell gets a difficulty level based on the **best (lowest) fame rank** among
 
 | Fame rank of best player | Cell difficulty |
 |--------------------------|----------------|
-| Top 20 | 1 — trivial |
-| Top 21–50 | 2 — easy |
-| Top 51–100 | 3 — medium |
-| Beyond top 100 | 4 — hard |
+| rank ≤ 100 | 1 — stars (top 5% of dataset, recognized by any fan) |
+| rank ≤ 500 | 2 — well-known (top 20%, regulars in top clubs) |
+| rank ≤ 1000 | 3 — league regular (top 33%) |
+| rank > 1000 | 4 — obscure / squad depth |
 
-**Current fame proxy: total career seasons** (sum of all spell durations per player). This is a rough approximation — players with longer careers rank higher regardless of their actual notoriety. A future improvement is to use Transfermarkt market values or search-volume data.
+**Fame source: `rang_mondial` (Transfermarkt world ranking)** enriched into `players_all.json`. 2 274 out of 2 475 players have a real rank. The 201 unranked players receive fallback ranks after the last real rank, sorted by `valeur_marchande` then career span.
 
 Grid difficulty is derived from its cells:
 
@@ -80,17 +80,17 @@ Algorithm:
 
 ## Current generation results (Big 5 snapshot v1)
 
+Thresholds calibrated on the Big 5 dataset: top 5% ≈ rank ≤ 100, top 20% ≈ rank ≤ 500, top 33% ≈ rank ≤ 1000.
+
 | Mode | Valid cells | Easy grids | Medium grids | Hard grids |
 |------|------------|------------|--------------|------------|
-| club_club | 10 785 | 3 | 8 | 500 |
-| club_year | 2 919 | 1 | 2 | 164 |
-| club_nationality | 4 851 | 0 | 0 | 280 |
-
-**Observation:** very few easy/medium grids because the fame proxy (career span) does not correlate well with actual player notoriety — many players with long careers are relatively unknown, pushing most cells to difficulty 4. Replacing the fame proxy with real market-value data would redistribute difficulty more evenly.
+| club_club | 10 785 | 1 | 6 | 500 |
+| club_year | 2 919 | 3 | 4 | 119 |
+| club_nationality | 4 851 | 2 | 5 | 143 |
 
 ## Known limitations and next steps
 
-1. **Fame proxy**: replace career-span ranking with Transfermarkt market values or similar. Expected outcome: more even distribution across difficulty levels, more easy/medium grids.
+1. **Easy/medium coverage**: only 6-9 easy+medium grids per mode currently. More grids in these tiers require a broader player database (more historical data) or looser thresholds.
 2. **Grid push to Supabase**: a follow-up script should read `generated-grids.json` and write draft puzzles to `puzzles`, `puzzle_axes`, `puzzle_cells`, and `accepted_answers` tables.
 3. **Admin review**: generated grids should be reviewed before being scheduled as daily puzzles (see roadmap §6).
 4. **Data coverage**: the current snapshot covers only Big 5 league seasons scraped from Transfermarkt. Historical data (pre-2020) and loan spells may be incomplete.
