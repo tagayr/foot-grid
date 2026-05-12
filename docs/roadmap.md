@@ -55,14 +55,14 @@ Important files:
 
 - Ranked daily attempts are persisted for logged-in users.
 - A first-pass daily leaderboard is shown for the daily puzzle.
-- The game still validates live answers mostly client-side, and final ranked score submission is not yet fully recomputed server-side.
+- The game still gives immediate client-side feedback, but ranked completion is recomputed server-side from submitted answers and Supabase accepted answers.
 - The player database is prototype data and should not be treated as production-quality.
 - Practice mode is implemented, but logged-in practice history/stats are not persisted yet.
 - Puzzle generation depends on local ignored source/artifact files under `data/`, so a fresh checkout still needs `data/players_all.json` before it can reproduce the pipeline.
 - Generated puzzle candidates have been imported to Supabase as drafts; the next model publishes one ranked daily puzzle per date and uses the rest as practice.
 - There is a manual publish script, but not yet an admin review UI or recurring scheduler.
 - Supabase player search currently loads display names only; richer player metadata and server-side search can come later.
-- Ranked daily attempts are persisted for logged-in users, but answer-by-answer persistence and anti-cheat hardening are still future work.
+- Ranked daily attempts are persisted for logged-in users, with server-side score verification and one stored answer row per attempted cell.
 - Supabase types are manually maintained for now.
 - The old `index.html`, `players_raw.json`, and `players_clean.json` still exist as prototype/reference artifacts.
 
@@ -81,8 +81,9 @@ Tasks:
 - [x] Add final result submission.
 - [x] Compute duration on the trusted side.
 - [x] Enforce one ranked attempt per user per daily puzzle.
-- [ ] Move score/found/error computation fully server-side.
-- [ ] Persist submitted answers in `daily_attempt_answers`.
+- [x] Move score/found/error computation server-side for ranked completion.
+- [x] Persist submitted answers in `daily_attempt_answers`.
+- [ ] Store full wrong-guess history if we want more detailed anti-cheat/audit data. Current schema stores one final submitted answer row per attempted cell.
 - [ ] Add richer client states: not started, in progress, completed, already played.
 - [x] Decide whether answers are submitted one by one or only at the end. First pass submits only at the end.
 

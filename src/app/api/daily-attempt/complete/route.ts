@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 import { getAdminClient, getAuthenticatedUser } from "@/lib/api/auth";
 
 type CompleteBody = {
+  answers?: Array<{
+    colPosition?: number;
+    playerName?: string;
+    rowPosition?: number;
+  }>;
   attemptId?: string;
-  errorCount?: number;
-  foundCount?: number;
+  gaveUp?: boolean;
   puzzleId?: string;
-  score?: number;
 };
+
+const MODE_MULTIPLIERS = {
+  club_club: 1.5,
+  club_nationality: 1,
+  club_year: 2
+} as const;
 
 export async function POST(request: Request) {
   const { user, error: authError } = await getAuthenticatedUser(request);
@@ -20,9 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing attemptId or puzzleId." }, { status: 400 });
   }
 
-  const score = clampInteger(body.score, 0, 100000);
-  const foundCount = clampInteger(body.foundCount, 0, 9);
-  const errorCount = clampInteger(body.errorCount, 0, 4);
+  const submittedAnswers = sanitizeAnswers(body.answers);
   const supabase = getAdminClient();
 
   const { data: attempt, error: attemptError } = await supabase
@@ -43,7 +50,7 @@ export async function POST(request: Request) {
 
   const { data: puzzle, error: puzzleError } = await supabase
     .from("puzzles")
-    .select("id, puzzle_date")
+    .select("id, mode, puzzle_date")
     .eq("id", body.puzzleId)
     .eq("kind", "daily")
     .eq("status", "published")
@@ -51,6 +58,8 @@ export async function POST(request: Request) {
   if (puzzleError) {
     return NextResponse.json({ error: puzzleError.message }, { status: 400 });
   }
+
+  const verification = await verifySubmittedAnswers(supabase, puzzle.id, puzzle.mode, submittedAnswers);
 
   const completedAt = new Date();
   const startedAt = new Date(attempt.started_at);
@@ -61,9 +70,9 @@ export async function POST(request: Request) {
     .update({
       completed_at: completedAt.toISOString(),
       duration_ms: durationMs,
-      error_count: errorCount,
-      found_count: foundCount,
-      score,
+      error_count: verification.errorCount,
+      found_count: verification.foundCount,
+      score: verification.score,
       status: "completed"
     })
     .eq("id", attempt.id)
@@ -74,11 +83,118 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
+  await replaceAttemptAnswers(supabase, attempt.id, verification.answerRows);
+
   if (puzzle.puzzle_date) {
     await updateStreak(supabase, user.id, puzzle.puzzle_date);
   }
 
   return NextResponse.json({ attempt: updatedAttempt });
+}
+
+async function verifySubmittedAnswers(
+  supabase: ReturnType<typeof getAdminClient>,
+  puzzleId: string,
+  mode: keyof typeof MODE_MULTIPLIERS,
+  submittedAnswers: Array<{ colPosition: number; playerName: string; rowPosition: number }>
+) {
+  const { data: cells, error: cellsError } = await supabase
+    .from("puzzle_cells")
+    .select("id, row_position, col_position, answer_count")
+    .eq("puzzle_id", puzzleId);
+  throwIfError(cellsError, "load puzzle cells");
+
+  const cellIds = (cells ?? []).map((cell) => cell.id);
+  const { data: acceptedAnswers, error: answersError } = cellIds.length
+    ? await supabase
+        .from("accepted_answers")
+        .select("puzzle_cell_id, player_id, players(display_name)")
+        .in("puzzle_cell_id", cellIds)
+    : { data: [], error: null };
+  throwIfError(answersError, "load accepted answers");
+
+  const cellByPosition = new Map(
+    (cells ?? []).map((cell) => [`${cell.row_position}:${cell.col_position}`, cell])
+  );
+  const acceptedByCell = new Map<number, Array<{ playerId: number; playerName: string }>>();
+  for (const row of (acceptedAnswers ?? []) as Array<{
+    player_id: number;
+    puzzle_cell_id: number;
+    players: { display_name: string } | { display_name: string }[] | null;
+  }>) {
+    const player = Array.isArray(row.players) ? row.players[0] : row.players;
+    if (!player?.display_name) continue;
+    const current = acceptedByCell.get(row.puzzle_cell_id) ?? [];
+    current.push({ playerId: row.player_id, playerName: player.display_name });
+    acceptedByCell.set(row.puzzle_cell_id, current);
+  }
+
+  let errorCount = 0;
+  const correctCellIds = new Set<number>();
+  const answerRowsByCell = new Map<number, {
+    is_correct: boolean;
+    player_id: number | null;
+    puzzle_cell_id: number;
+    submitted_name: string;
+  }>();
+
+  for (const answer of submittedAnswers) {
+    const cell = cellByPosition.get(`${answer.rowPosition}:${answer.colPosition}`);
+    if (!cell || correctCellIds.has(cell.id)) continue;
+
+    const accepted = acceptedByCell.get(cell.id) ?? [];
+    const matched = accepted.find((candidate) => normalize(candidate.playerName) === normalize(answer.playerName));
+    const isCorrect = Boolean(matched);
+
+    if (isCorrect) {
+      correctCellIds.add(cell.id);
+    } else {
+      errorCount += 1;
+    }
+
+    answerRowsByCell.set(cell.id, {
+      is_correct: isCorrect,
+      player_id: matched?.playerId ?? null,
+      puzzle_cell_id: cell.id,
+      submitted_name: answer.playerName
+    });
+  }
+
+  const foundCount = correctCellIds.size;
+  const baseScore = (cells ?? []).reduce((score, cell) => {
+    if (!correctCellIds.has(cell.id)) return score;
+    return score + (cell.answer_count <= 2 ? 100 : 50);
+  }, 0);
+  const score = Math.max(0, Math.round(baseScore * MODE_MULTIPLIERS[mode]) - Math.min(errorCount, 4) * 20);
+
+  return {
+    answerRows: [...answerRowsByCell.values()],
+    errorCount: Math.min(errorCount, 4),
+    foundCount,
+    score
+  };
+}
+
+async function replaceAttemptAnswers(
+  supabase: ReturnType<typeof getAdminClient>,
+  attemptId: string,
+  answerRows: Array<{
+    is_correct: boolean;
+    player_id: number | null;
+    puzzle_cell_id: number;
+    submitted_name: string;
+  }>
+) {
+  await supabase.from("daily_attempt_answers").delete().eq("attempt_id", attemptId);
+  if (!answerRows.length) return;
+
+  const { error } = await supabase.from("daily_attempt_answers").insert(
+    answerRows.map((row) => ({
+      ...row,
+      attempt_id: attemptId
+    }))
+  );
+  throwIfError(error, "insert daily attempt answers");
 }
 
 async function updateStreak(supabase: ReturnType<typeof getAdminClient>, userId: string, puzzleDate: string) {
@@ -107,10 +223,35 @@ function previousDay(date: string) {
   return value.toISOString().slice(0, 10);
 }
 
-function clampInteger(value: unknown, min: number, max: number) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) {
-    return min;
+function sanitizeAnswers(answers: CompleteBody["answers"]) {
+  if (!Array.isArray(answers)) return [];
+  return answers
+    .map((answer) => ({
+      colPosition: Number(answer.colPosition),
+      playerName: String(answer.playerName ?? "").trim(),
+      rowPosition: Number(answer.rowPosition)
+    }))
+    .filter((answer) =>
+      Number.isInteger(answer.rowPosition) &&
+      Number.isInteger(answer.colPosition) &&
+      answer.rowPosition >= 0 &&
+      answer.rowPosition <= 2 &&
+      answer.colPosition >= 0 &&
+      answer.colPosition <= 2 &&
+      answer.playerName.length > 0
+    )
+    .slice(0, 20);
+}
+
+function normalize(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function throwIfError(error: { message: string } | null, action: string) {
+  if (error) {
+    throw new Error(`Failed to ${action}: ${error.message}`);
   }
-  return Math.min(max, Math.max(min, Math.round(number)));
 }

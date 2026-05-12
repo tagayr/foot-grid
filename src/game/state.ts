@@ -14,6 +14,7 @@ export function createInitialState(puzzle: Puzzle): GameState {
     erreurs: 0,
     trouves: 0,
     cellules,
+    submissions: [],
     termine: false
   };
 }

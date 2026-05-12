@@ -14,6 +14,12 @@ type DailyAttempt = {
   status: "in_progress" | "completed" | "failed" | "abandoned";
 };
 
+type SubmittedAnswer = {
+  colPosition: number;
+  playerName: string;
+  rowPosition: number;
+};
+
 export function useDailyAttempt() {
   const { session, user } = useAuth();
   const [attempt, setAttempt] = useState<DailyAttempt | null>(null);
@@ -57,15 +63,13 @@ export function useDailyAttempt() {
 
   const completeAttempt = useCallback(
     async ({
-      errorCount,
-      foundCount,
+      answers,
       puzzleId,
-      score
+      gaveUp
     }: {
-      errorCount: number;
-      foundCount: number;
+      answers: SubmittedAnswer[];
+      gaveUp: boolean;
       puzzleId: string;
-      score: number;
     }) => {
       if (!attempt || !session?.access_token || attempt.status === "completed" || submittedAttemptId === attempt.id) {
         return null;
@@ -74,11 +78,10 @@ export function useDailyAttempt() {
       setSubmittedAttemptId(attempt.id);
       const response = await fetch("/api/daily-attempt/complete", {
         body: JSON.stringify({
+          answers,
           attemptId: attempt.id,
-          errorCount,
-          foundCount,
-          puzzleId,
-          score
+          gaveUp,
+          puzzleId
         }),
         headers: {
           authorization: `Bearer ${session.access_token}`,

@@ -821,6 +821,7 @@ header {
 }
 
 .modal-close,
+.give-up-btn,
 .rejouer-btn {
   width: 100%;
   background: transparent;
@@ -833,6 +834,10 @@ header {
   padding: 11px;
   cursor: pointer;
   margin-top: 10px;
+}
+
+.give-up-btn {
+  margin-top: 12px;
 }
 
 .end-screen {

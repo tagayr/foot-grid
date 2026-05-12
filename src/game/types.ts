@@ -35,5 +35,9 @@ export type GameState = {
   erreurs: number;
   trouves: number;
   cellules: Record<string, CellState>;
+  submissions: Array<{
+    key: string;
+    playerName: string;
+  }>;
   termine: boolean;
 };

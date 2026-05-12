@@ -92,6 +92,20 @@ export function useGame({ players, puzzles }: UseGameInput) {
     setActiveCell(null);
   }
 
+  function giveUp() {
+    if (!mode || !puzzle || !state || state.termine) {
+      return;
+    }
+
+    const nextState: GameState = {
+      ...structuredClone(state),
+      termine: true
+    };
+    setActiveCell(null);
+    setState(nextState);
+    setShareText(buildShareText(mode, puzzle, nextState));
+  }
+
   function showToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2000);
@@ -105,6 +119,7 @@ export function useGame({ players, puzzles }: UseGameInput) {
     setActiveCell(null);
     const ok = validateAnswer({ puzzle, players, playerName, ...activeCell });
     const nextState: GameState = structuredClone(state);
+    nextState.submissions.push({ key: activeCell.key, playerName });
 
     if (ok) {
       nextState.cellules[activeCell.key] = { remplie: true, joueur: playerName };
@@ -150,6 +165,7 @@ export function useGame({ players, puzzles }: UseGameInput) {
     activeCell,
     backToMenu,
     closeModal,
+    giveUp,
     mode,
     puzzle,
     score,

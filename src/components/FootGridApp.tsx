@@ -6,6 +6,7 @@ import puzzlesData from "@/data/puzzles.generated.json";
 import AuthPanel from "./auth/AuthPanel";
 import { useAuth } from "./auth/AuthProvider";
 import type { Mode, Player, PuzzlesByMode } from "@/game/types";
+import { cellKey } from "@/game/keys";
 import { loadRandomPracticePuzzle } from "@/lib/puzzles/loadPublishedPuzzles";
 import DailyLeaderboard from "@/components/leaderboard/DailyLeaderboard";
 import { useDailyAttempt } from "@/hooks/useDailyAttempt";
@@ -64,10 +65,24 @@ export default function FootGridApp() {
 
     void dailyAttempt
       .completeAttempt({
-        errorCount: game.state.erreurs,
-        foundCount: game.state.trouves,
+        answers: game.state.submissions
+          .map((submission) => {
+            const key = submission.key;
+            const rowPosition = game.puzzle?.rows.findIndex((row) =>
+              game.puzzle?.cols.some((col) => cellKey(row, col) === key)
+            ) ?? -1;
+            const colPosition = game.puzzle?.cols.findIndex((col) =>
+              game.puzzle?.rows.some((row) => cellKey(row, col) === key)
+            ) ?? -1;
+            return {
+              colPosition,
+              playerName: submission.playerName,
+              rowPosition
+            };
+          })
+          .filter((answer) => answer.rowPosition >= 0 && answer.colPosition >= 0),
+        gaveUp: game.state.trouves < 9 && game.state.erreurs < 4,
         puzzleId: game.puzzle.id,
-        score: game.score
       })
       .then((attempt) => {
         if (attempt) {
@@ -140,6 +155,11 @@ export default function FootGridApp() {
           <RulesPanel mode={game.mode} />
           <ErrorsRow errors={game.state.erreurs} />
           <GameGrid puzzle={game.puzzle} state={game.state} onCell={game.setActiveCell} />
+          {!game.state.termine ? (
+            <button className="give-up-btn" onClick={game.giveUp}>
+              J’abandonne · voir mon score
+            </button>
+          ) : null}
           {game.state.termine ? (
             <EndScreen
               mode={game.mode}
