@@ -2,7 +2,7 @@
 
 ## Overview
 
-The generation pipeline transforms the player database into ready-to-use 3×3 grids for all three game modes. It runs from local JSON data and outputs candidate grids that can then be reviewed and pushed to Supabase.
+The generation pipeline transforms the player database into ready-to-use 3×3 grids for all three game modes. It runs from local JSON data, outputs candidate grids, and can import those candidates to Supabase as draft puzzles for later review/publishing.
 
 ## Files
 
@@ -11,6 +11,7 @@ The generation pipeline transforms the player database into ready-to-use 3×3 gr
 | `data/players_all.json` | Source: 2 475 players from the Big 5 leagues (Transfermarkt import) |
 | `scripts/import-players.mjs` | Imports `players_all.json` into Supabase (`players`, `clubs`, `countries`, `career_spells`) |
 | `scripts/generate-puzzles.mjs` | Generates all valid cells and assembles grids — outputs to `data/` |
+| `scripts/import-generated-grids.mjs` | Imports generated grids to Supabase as draft puzzles |
 | `data/puzzle-cells.json` | All valid axis pairs with solutions and difficulty (≈3 MB) |
 | `data/generated-grids.json` | Assembled 3×3 grids grouped by mode and difficulty (≈1.5 MB) |
 
@@ -25,6 +26,10 @@ node scripts/import-players.mjs --reset     # wipe snapshot and reimport
 # Step 2 — generate cells and grids (reads from data/players_all.json)
 node scripts/generate-puzzles.mjs
 node scripts/generate-puzzles.mjs --dry-run  # print stats, write nothing
+
+# Step 3 — import generated candidates as draft Supabase puzzles
+node scripts/import-generated-grids.mjs
+node scripts/import-generated-grids.mjs --dry-run
 ```
 
 ## Game modes
@@ -52,10 +57,10 @@ Each cell gets a difficulty level based on the **best (lowest) fame rank** among
 
 | Fame rank of best player | Cell difficulty |
 |--------------------------|----------------|
-| rank ≤ 100 | 1 — stars (top 5% of dataset, recognized by any fan) |
-| rank ≤ 500 | 2 — well-known (top 20%, regulars in top clubs) |
-| rank ≤ 1000 | 3 — league regular (top 33%) |
-| rank > 1000 | 4 — obscure / squad depth |
+| rank ≤ 200 | 1 — stars / top club regulars |
+| rank ≤ 1000 | 2 — well-known |
+| rank ≤ 2000 | 3 — league regular |
+| rank > 2000 | 4 — obscure / squad depth |
 
 **Fame source: `rang_mondial` (Transfermarkt world ranking)** enriched into `players_all.json`. 2 274 out of 2 475 players have a real rank. The 201 unranked players receive fallback ranks after the last real rank, sorted by `valeur_marchande` then career span.
 
@@ -80,18 +85,20 @@ Algorithm:
 
 ## Current generation results (Big 5 snapshot v1)
 
-Thresholds calibrated on the Big 5 dataset: top 5% ≈ rank ≤ 100, top 20% ≈ rank ≤ 500, top 33% ≈ rank ≤ 1000.
+Thresholds currently used by `scripts/generate-puzzles.mjs`: rank ≤ 200, ≤ 1000, ≤ 2000.
 
 | Mode | Valid cells | Easy grids | Medium grids | Hard grids |
 |------|------------|------------|--------------|------------|
-| club_club | 10 785 | 1 | 6 | 500 |
-| club_year | 2 919 | 3 | 4 | 119 |
-| club_nationality | 4 851 | 2 | 5 | 143 |
+| club_club | 10 785 | 2 | 24 | 500 |
+| club_year | 2 919 | 7 | 16 | 77 |
+| club_nationality | 4 851 | 7 | 19 | 70 |
+
+The current generated set has been imported to Supabase as **722 draft puzzles**, with **6 498 puzzle cells** and **13 110 accepted answers**.
 
 ## Known limitations and next steps
 
-1. **Easy/medium coverage**: only 6-9 easy+medium grids per mode currently. More grids in these tiers require a broader player database (more historical data) or looser thresholds.
-2. **Grid push to Supabase**: a follow-up script should read `generated-grids.json` and write draft puzzles to `puzzles`, `puzzle_axes`, `puzzle_cells`, and `accepted_answers` tables.
-3. **Admin review**: generated grids should be reviewed before being scheduled as daily puzzles (see roadmap §6).
-4. **Data coverage**: the current snapshot covers only Big 5 league seasons scraped from Transfermarkt. Historical data (pre-2020) and loan spells may be incomplete.
-5. **Year-range mode balance**: the `club_year` mode produces fewer grids because many clubs only appear in a small number of year windows. Expanding the player database (longer history) would improve coverage.
+1. **Admin review**: generated grids should be reviewed before being scheduled as daily puzzles (see roadmap §6).
+2. **Publish/schedule flow**: drafts are in Supabase, but there is not yet a UI or script to publish one for a specific date.
+3. **Data coverage**: the current snapshot covers only Big 5 league seasons scraped from Transfermarkt. Historical data (pre-2020) and loan spells may be incomplete.
+4. **Year-range mode balance**: the `club_year` mode produces fewer grids because many clubs only appear in a small number of year windows. Expanding the player database (longer history) would improve coverage.
+5. **Snapshot semantics**: the player importer still needs a review so future provider imports preserve historical reproducibility cleanly.

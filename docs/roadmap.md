@@ -30,6 +30,7 @@ Implemented:
 - data source and data snapshot model
 - prototype Supabase seed script
 - published-puzzle loader from Supabase with local fallback
+- draft player import, puzzle generation, and generated-grid import scripts for a Big 5 dataset
 - basic tests for validation, search, and scoring
 
 Important files:
@@ -42,6 +43,9 @@ Important files:
 - Supabase puzzle loader: `src/lib/puzzles/`
 - Supabase migrations: `supabase/migrations/`
 - Prototype seed script: `scripts/seed-prototype-supabase.mjs`
+- Draft player importer: `scripts/import-players.mjs`
+- Draft puzzle generator: `scripts/generate-puzzles.mjs`
+- Draft generated-grid importer: `scripts/import-generated-grids.mjs`
 
 ## Current Limitations
 
@@ -49,8 +53,10 @@ Important files:
 - Leaderboards are not yet shown in the UI.
 - The game still validates live answers mostly client-side.
 - The player database is prototype data and should not be treated as production-quality.
-- Random grid generation is not implemented.
-- Puzzle generation is currently manual/prototype, not an automated quality-scored pipeline.
+- Random grid play is not implemented in the app.
+- Puzzle generation depends on local ignored source/artifact files under `data/`, so a fresh checkout still needs `data/players_all.json` before it can reproduce the pipeline.
+- Generated puzzle candidates have been imported to Supabase as drafts, but there is not yet an admin review/publish workflow.
+- The app only loads published puzzles for a date, so draft generated candidates are not visible in the game until one is published or scheduled.
 - Supabase types are manually maintained for now.
 - The old `index.html`, `players_raw.json`, and `players_clean.json` still exist as prototype/reference artifacts.
 
@@ -167,21 +173,31 @@ Acceptance criteria:
 
 ### 5. Puzzle Generation Pipeline
 
-Goal: generate candidate grids from the database automatically.
+Goal: generate candidate grids from football reference data automatically, then publish reviewed candidates to Supabase.
 
-**Status: partially implemented** — see `docs/puzzle-generation.md` for full details.
+**Status: draft pipeline implemented, not yet productized** — see `docs/puzzle-generation.md` for full details.
 
 Done:
 
-- [x] `scripts/import-players.mjs` — imports Big 5 player data (2 475 players, 1 713 clubs) into Supabase with snapshot versioning. Run with `node scripts/import-players.mjs`.
-- [x] `scripts/generate-puzzles.mjs` — computes all valid (axisA × axisB) cells for all three modes, scores difficulty, assembles non-overlapping 3×3 grids. Run with `node scripts/generate-puzzles.mjs`.
-- [x] `data/puzzle-cells.json` — 18 555 valid cells across all modes with solutions and difficulty.
-- [x] `data/generated-grids.json` — assembled grids: 4 easy, 10 medium, 944 hard across all modes.
+- [x] `scripts/import-players.mjs` — draft importer for a Big 5 `players_all.json` dataset into Supabase.
+- [x] `scripts/generate-puzzles.mjs` — draft generator that computes valid cells for all three modes, scores difficulty, and assembles non-overlapping 3x3 grids.
+- [x] `scripts/import-generated-grids.mjs` — imports generated candidates into Supabase as draft puzzles with axes, cells, and accepted answers.
+- [x] Imported current generated candidates into Supabase: 722 draft puzzles, 6 498 cells, and 13 110 accepted answers.
+- [x] `docs/puzzle-generation.md` — documents Clement's current pipeline assumptions, commands, and reported generation results.
+- [x] `package.json` commands for player import, puzzle generation, and generated-grid import.
+
+Important current caveats:
+
+- [ ] `data/players_all.json` is required by both scripts, but is intentionally ignored by Git. Each developer needs to obtain it locally before reproducing the pipeline.
+- [ ] `data/puzzle-cells.json` and `data/generated-grids.json` are generated artifacts, also ignored by Git.
+- [ ] The generator currently reads local JSON, not the active Supabase snapshot. That is fine for a draft, but not yet the database-backed production flow described in the product target.
+- [ ] The importer uses snapshot fields, but the entity reuse/snapshot semantics still need review before relying on historical reproducibility.
+- [ ] The scripts are wired into `package.json`, but not CI yet.
 
 Remaining tasks:
 
-- [ ] Replace career-span fame proxy with real market-value data (Transfermarkt or similar) — currently produces very few easy/medium grids.
-- [ ] Write script to push `generated-grids.json` to Supabase as draft puzzles (`puzzles`, `puzzle_axes`, `puzzle_cells`, `accepted_answers`).
+- [ ] Reconcile difficulty docs with code thresholds and decide the first production calibration.
+- [ ] Decide whether production generation reads directly from Supabase snapshots or from generated local data files.
 - [ ] Add a command for scheduled/CI use (GitHub Actions nightly run).
 - [ ] Validate generated grids manually before scheduling as daily puzzles.
 
@@ -197,6 +213,7 @@ Primary files:
 
 Acceptance criteria:
 
+- A fresh developer checkout can reproduce the pipeline after obtaining the documented source data file.
 - Script can generate multiple valid puzzle candidates for all three modes.
 - Difficulty scoring distributes grids reasonably across easy/medium/hard.
 - Generated puzzles can be pushed to Supabase as draft rows ready for admin review.

@@ -13,6 +13,12 @@
     "generate:data": "node scripts/extract-prototype-data.mjs",
     "db:seed:prototype": "node scripts/seed-prototype-supabase.mjs",
     "db:seed:prototype:dry-run": "node scripts/seed-prototype-supabase.mjs --dry-run",
+    "db:import:players": "node scripts/import-players.mjs",
+    "db:import:players:dry-run": "node scripts/import-players.mjs --dry-run",
+    "db:generate:puzzles": "node scripts/generate-puzzles.mjs",
+    "db:generate:puzzles:dry-run": "node scripts/generate-puzzles.mjs --dry-run",
+    "db:import:generated-grids": "node scripts/import-generated-grids.mjs",
+    "db:import:generated-grids:dry-run": "node scripts/import-generated-grids.mjs --dry-run",
     "verify": "npm run generate:data && npm run test && npm run build"
   },
   "dependencies": {
