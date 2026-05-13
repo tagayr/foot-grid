@@ -2,12 +2,6 @@ import { NextResponse } from "next/server";
 import { getAdminClient, getAuthenticatedUser } from "@/lib/api/auth";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const puzzleId = searchParams.get("puzzleId");
-  if (!puzzleId) {
-    return NextResponse.json({ error: "Missing puzzleId." }, { status: 400 });
-  }
-
   const authHeader = request.headers.get("authorization");
   const hasBearer = authHeader?.startsWith("Bearer ");
   const auth = hasBearer ? await getAuthenticatedUser(request) : { error: null, user: null };
@@ -17,10 +11,9 @@ export async function GET(request: Request) {
 
   const supabase = getAdminClient();
   const { data, error } = await supabase
-    .from("daily_leaderboard")
-    .select("rank, user_id, display_name, username, score, found_count, error_count, duration_ms, completed_at")
-    .eq("puzzle_id", puzzleId)
-    .order("rank", { ascending: true })
+    .from("streak_leaderboard")
+    .select("user_id, display_name, username, current_streak, best_streak, last_completed_date, current_rank, best_rank")
+    .order("current_rank", { ascending: true })
     .limit(10);
 
   if (error) {
@@ -30,9 +23,8 @@ export async function GET(request: Request) {
   let myRow = null;
   if (auth.user) {
     const { data: userRow, error: userRowError } = await supabase
-      .from("daily_leaderboard")
-      .select("rank, user_id, display_name, username, score, found_count, error_count, duration_ms, completed_at")
-      .eq("puzzle_id", puzzleId)
+      .from("streak_leaderboard")
+      .select("user_id, display_name, username, current_streak, best_streak, last_completed_date, current_rank, best_rank")
       .eq("user_id", auth.user.id)
       .maybeSingle();
 

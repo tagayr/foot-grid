@@ -575,6 +575,10 @@ header {
   font-size: 13px;
 }
 
+.leaderboard-empty.error {
+  color: #ffb4a8;
+}
+
 .practice-notice {
   border: 1px solid var(--gris);
   background: #111a11;
@@ -649,6 +653,14 @@ header {
   gap: 8px;
   color: var(--gris-clair);
   font-size: 13px;
+  border: 1px solid transparent;
+  padding: 5px 6px;
+}
+
+.leaderboard-row.is-me {
+  background: #142014;
+  border-color: var(--or);
+  color: var(--blanc);
 }
 
 .leaderboard-rank,
@@ -660,6 +672,18 @@ header {
 
 .leaderboard-rank {
   color: var(--or);
+}
+
+.leaderboard-separator {
+  border-top: 1px solid #1a2a1a;
+  color: var(--gris-clair);
+  font-family: var(--font-barlow-condensed), sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-top: 2px;
+  padding-top: 8px;
+  text-transform: uppercase;
 }
 
 .leaderboard-name {

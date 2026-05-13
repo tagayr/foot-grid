@@ -3,37 +3,30 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 
-export type LeaderboardRow = {
-  completed_at: string | null;
+export type StreakLeaderboardRow = {
+  best_rank: number | null;
+  best_streak: number | null;
+  current_rank: number | null;
+  current_streak: number | null;
   display_name: string | null;
-  duration_ms: number | null;
-  error_count: number | null;
-  found_count: number | null;
-  rank: number | null;
-  score: number | null;
+  last_completed_date: string | null;
   user_id: string | null;
   username: string | null;
 };
 
-export function useDailyLeaderboard(puzzleId: string | undefined, refreshKey = 0) {
+export function useStreakLeaderboard() {
   const { session, user } = useAuth();
   const [error, setError] = useState<string | null>(null);
-  const [myRow, setMyRow] = useState<LeaderboardRow | null>(null);
-  const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [myRow, setMyRow] = useState<StreakLeaderboardRow | null>(null);
+  const [rows, setRows] = useState<StreakLeaderboardRow[]>([]);
 
   useEffect(() => {
     let active = true;
-    if (!puzzleId) {
-      setError(null);
-      setMyRow(null);
-      setRows([]);
-      return;
-    }
-
     setLoading(true);
     setError(null);
-    fetch(`/api/daily-leaderboard?puzzleId=${encodeURIComponent(puzzleId)}`, {
+
+    fetch("/api/streak-leaderboard", {
       headers: {
         ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {})
       }
@@ -41,31 +34,29 @@ export function useDailyLeaderboard(puzzleId: string | undefined, refreshKey = 0
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error ?? "Unable to load leaderboard.");
+          throw new Error(payload.error ?? "Unable to load streak leaderboard.");
         }
         if (active) {
           setMyRow(payload.myRow ?? null);
           setRows(payload.rows ?? []);
         }
       })
-      .catch((error) => {
-        console.warn("Unable to load daily leaderboard.", error);
+      .catch((caughtError) => {
+        console.warn("Unable to load streak leaderboard.", caughtError);
         if (active) {
-          setError(error instanceof Error ? error.message : "Unable to load leaderboard.");
+          setError(caughtError instanceof Error ? caughtError.message : "Unable to load streak leaderboard.");
           setMyRow(null);
           setRows([]);
         }
       })
       .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       });
 
     return () => {
       active = false;
     };
-  }, [puzzleId, refreshKey, session?.access_token]);
+  }, [session?.access_token]);
 
   return { currentUserId: user?.id ?? null, error, loading, myRow, rows };
 }

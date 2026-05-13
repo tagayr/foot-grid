@@ -171,8 +171,11 @@ type PracticeModeStats = {
   averageDurationMs: number | null;
   averageFound: number | null;
   bestScore: number;
+  completionPercent: number | null;
   mode: PuzzleMode;
   played: number;
+  totalPuzzles: number;
+  uniqueCompleted: number;
 };
 
 type AccountStats = {
@@ -190,7 +193,10 @@ type AccountStats = {
   practiceAverageFound: number | null;
   practiceBestScore: number;
   practiceByMode: PracticeModeStats[];
+  practiceMaxDurationMs: number | null;
+  practiceMinDurationMs: number | null;
   practicePlayed: number;
+  recentPractice: Array<PracticeAttempt & { mode?: PuzzleMode | null }>;
   recent: Array<DailyAttempt & { mode?: PuzzleMode | null; puzzleDate?: string | null }>;
   todayRank: number | null;
 };
@@ -200,6 +206,7 @@ function useAccountStats(enabled: boolean): AccountStats {
   const [loading, setLoading] = useState(false);
   const [attempts, setAttempts] = useState<DailyAttempt[]>([]);
   const [practiceAttempts, setPracticeAttempts] = useState<PracticeAttempt[]>([]);
+  const [practicePoolCounts, setPracticePoolCounts] = useState<Map<PuzzleMode, number>>(new Map());
   const [puzzleMeta, setPuzzleMeta] = useState<Map<string, { mode: PuzzleMode | null; puzzleDate: string | null }>>(new Map());
   const [streak, setStreak] = useState<{ best_streak: number; current_streak: number } | null>(null);
   const [todayRank, setTodayRank] = useState<number | null>(null);
@@ -209,6 +216,7 @@ function useAccountStats(enabled: boolean): AccountStats {
     if (!enabled || !user) {
       setAttempts([]);
       setPracticeAttempts([]);
+      setPracticePoolCounts(new Map());
       setPuzzleMeta(new Map());
       setStreak(null);
       setTodayRank(null);
@@ -223,6 +231,7 @@ function useAccountStats(enabled: boolean): AccountStats {
         if (active) {
           setAttempts([]);
           setPracticeAttempts([]);
+          setPracticePoolCounts(new Map());
           setPuzzleMeta(new Map());
           setStreak(null);
           setTodayRank(null);
@@ -260,6 +269,20 @@ function useAccountStats(enabled: boolean): AccountStats {
 
       const completedPracticeAttempts = practiceRows ?? [];
       setPracticeAttempts(completedPracticeAttempts);
+
+      const { data: practicePuzzles, error: practicePuzzlesError } = await supabase
+        .from("puzzles")
+        .select("id, mode")
+        .eq("kind", "practice")
+        .eq("status", "published");
+      if (practicePuzzlesError) throw practicePuzzlesError;
+      if (!active) return;
+
+      const nextPracticePoolCounts = new Map<PuzzleMode, number>();
+      for (const puzzle of practicePuzzles ?? []) {
+        nextPracticePoolCounts.set(puzzle.mode, (nextPracticePoolCounts.get(puzzle.mode) ?? 0) + 1);
+      }
+      setPracticePoolCounts(nextPracticePoolCounts);
 
       const puzzleIds = [
         ...new Set([
@@ -315,12 +338,17 @@ function useAccountStats(enabled: boolean): AccountStats {
     const practiceByMode = (["club_club", "club_year", "club_nationality"] as PuzzleMode[]).map((mode) => {
       const rows = practiceAttempts.filter((attempt) => puzzleMeta.get(attempt.puzzle_id)?.mode === mode);
       const modeDurations = rows.map((attempt) => attempt.duration_ms).filter((value): value is number => value != null);
+      const uniqueCompleted = new Set(rows.map((attempt) => attempt.puzzle_id)).size;
+      const totalPuzzles = practicePoolCounts.get(mode) ?? 0;
       return {
         averageDurationMs: average(modeDurations),
         averageFound: average(rows.map((attempt) => attempt.found_count)),
         bestScore: rows.length ? Math.max(...rows.map((attempt) => attempt.score)) : 0,
+        completionPercent: totalPuzzles ? (uniqueCompleted / totalPuzzles) * 100 : null,
         mode,
-        played: rows.length
+        played: rows.length,
+        totalPuzzles,
+        uniqueCompleted
       };
     });
 
@@ -339,7 +367,13 @@ function useAccountStats(enabled: boolean): AccountStats {
       practiceAverageFound: average(practiceFoundCounts),
       practiceBestScore: practiceScores.length ? Math.max(...practiceScores) : 0,
       practiceByMode,
+      practiceMaxDurationMs: practiceDurations.length ? Math.max(...practiceDurations) : null,
+      practiceMinDurationMs: practiceDurations.length ? Math.min(...practiceDurations) : null,
       practicePlayed: practiceAttempts.length,
+      recentPractice: practiceAttempts.slice(0, 5).map((attempt) => ({
+        ...attempt,
+        mode: puzzleMeta.get(attempt.puzzle_id)?.mode
+      })),
       recent: attempts.slice(0, 5).map((attempt) => ({
         ...attempt,
         mode: puzzleMeta.get(attempt.puzzle_id)?.mode,
@@ -347,7 +381,7 @@ function useAccountStats(enabled: boolean): AccountStats {
       })),
       todayRank
     };
-  }, [attempts, loading, practiceAttempts, puzzleMeta, streak?.best_streak, streak?.current_streak, todayRank]);
+  }, [attempts, loading, practiceAttempts, practicePoolCounts, puzzleMeta, streak?.best_streak, streak?.current_streak, todayRank]);
 }
 
 function AccountStatsView({ stats }: { stats: AccountStats }) {
@@ -387,6 +421,8 @@ function AccountStatsView({ stats }: { stats: AccountStats }) {
         <StatTile label="Meilleur" value={stats.practiceBestScore} />
         <StatTile label="Moy. bonnes" value={formatNumber(stats.practiceAverageFound)} />
         <StatTile label="Moy. temps" value={formatDuration(stats.practiceAverageDurationMs)} />
+        <StatTile label="Temps min" value={formatDuration(stats.practiceMinDurationMs)} />
+        <StatTile label="Temps max" value={formatDuration(stats.practiceMaxDurationMs)} />
       </div>
       {stats.practiceByMode.some((row) => row.played > 0) ? (
         <div className="recent-results">
@@ -394,13 +430,26 @@ function AccountStatsView({ stats }: { stats: AccountStats }) {
             <div className="recent-result" key={row.mode}>
               <span>{modeLabel(row.mode)}</span>
               <strong>
-                {row.played} joués · {formatNumber(row.averageFound)}/9 · {formatDuration(row.averageDurationMs)}
+                {row.played} joués · {row.bestScore} pts · {formatPercent(row.completionPercent)}
               </strong>
             </div>
           ))}
         </div>
       ) : (
         <p className="account-muted">Aucune grille d’entraînement terminée pour l’instant.</p>
+      )}
+      <div className="account-section-title">Entraînements récents</div>
+      {stats.recentPractice.length ? (
+        <div className="recent-results">
+          {stats.recentPractice.map((attempt) => (
+            <div className="recent-result" key={attempt.id}>
+              <span>{modeLabel(attempt.mode)}</span>
+              <strong>{attempt.score} pts · {attempt.found_count}/9 · {formatDuration(attempt.duration_ms)}</strong>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="account-muted">Aucun entraînement terminé pour l’instant.</p>
       )}
     </>
   );
@@ -422,6 +471,10 @@ function average(values: number[]) {
 
 function formatNumber(value: number | null) {
   return value == null ? "-" : value.toFixed(1);
+}
+
+function formatPercent(value: number | null) {
+  return value == null ? "-" : `${Math.round(value)}%`;
 }
 
 function formatDuration(value: number | null) {

@@ -32,6 +32,7 @@ Implemented:
 - published-puzzle loader from Supabase with local fallback
 - Supabase player search data for published Supabase puzzles
 - ranked daily attempt API routes and daily leaderboard display
+- streak leaderboard display
 - daily attempt status handling with completed-score/rank display
 - daily/practice home split with random practice puzzle loading
 - logged-in practice attempt persistence and account practice stats
@@ -56,7 +57,8 @@ Important files:
 ## Current Limitations
 
 - Ranked daily attempts are persisted for logged-in users.
-- A first-pass daily leaderboard is shown for the daily puzzle.
+- A first-pass daily leaderboard is shown for the daily puzzle, with top 10 + current user fallback.
+- A first-pass streak leaderboard is shown from `streak_leaderboard`.
 - Completed daily attempts now show the user's saved score/rank instead of starting a second ranked replay.
 - The game still gives immediate client-side feedback, but ranked completion is recomputed server-side from submitted answers and Supabase accepted answers.
 - The player database is prototype data and should not be treated as production-quality.
@@ -111,17 +113,18 @@ Acceptance criteria:
 
 Goal: users can see today's ranking and streak rankings.
 
-**Status: first pass daily leaderboard implemented.**
+**Status: first pass daily and streak leaderboards implemented.**
 
 Tasks:
 
 - [x] Fetch `daily_leaderboard` for today's puzzle.
-- Fetch `streak_leaderboard`.
+- [x] Fetch `streak_leaderboard`.
 - [x] Add daily leaderboard UI section.
 - [x] Add "my rank" treatment for completed daily result.
-- Add highlighted "my rank" treatment inside the leaderboard list.
-- Decide pagination or top-N display.
-- Add empty/loading/error states.
+- [x] Add highlighted "my rank" treatment inside the leaderboard list.
+- [x] Decide first-pass pagination/top-N display: top 10 + current user's row when outside top 10.
+- [x] Add empty/loading/error states.
+- [ ] Add full pagination or infinite scroll if leaderboard volume warrants it.
 
 Suggested owner: frontend/product UI.
 
@@ -147,6 +150,7 @@ Tasks:
 - [x] Add user's recent daily results.
 - [x] Add streak display.
 - [x] Add practice aggregate stats.
+- [x] Add richer practice stats: recent results, min/max duration, per-mode best score, completion percentage.
 - Add account state for email confirmation and logged-out view.
 - Add RLS-safe update policies if needed.
 
@@ -179,7 +183,8 @@ Tasks:
 - [x] Allow replay with a "tout est terminé" state when every puzzle in a practice mode is complete.
 - [x] Add practice stats: puzzles played, average correct answers, average duration, per mode.
 - [x] Store optional `random_attempts`.
-- [ ] Add richer practice stats: min/max duration, recent practice results, and trend/history views.
+- [x] Add richer practice stats: min/max duration, recent practice results, per-mode best score, completion percentage.
+- [ ] Add practice trend/history views.
 - [x] Keep practice play from affecting daily leaderboard/streaks.
 
 Suggested owner: frontend/game loop.

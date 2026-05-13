@@ -8,11 +8,13 @@ import { useAuth } from "./auth/AuthProvider";
 import type { Mode, Player, Puzzle, PuzzlesByMode } from "@/game/types";
 import { cellKey } from "@/game/keys";
 import DailyLeaderboard from "@/components/leaderboard/DailyLeaderboard";
+import StreakLeaderboard from "@/components/leaderboard/StreakLeaderboard";
 import { useDailyAttempt } from "@/hooks/useDailyAttempt";
 import { useDailyLeaderboard } from "@/hooks/useDailyLeaderboard";
 import { useGame } from "@/hooks/useGame";
 import { usePracticeAttempt } from "@/hooks/usePracticeAttempt";
 import { usePublishedPuzzles } from "@/hooks/usePublishedPuzzles";
+import { useStreakLeaderboard } from "@/hooks/useStreakLeaderboard";
 import { useSupabasePlayers } from "@/hooks/useSupabasePlayers";
 import DailyResultPanel from "./game/DailyResultPanel";
 import EndScreen from "./game/EndScreen";
@@ -52,6 +54,7 @@ export default function FootGridApp() {
   const dailyMode = publishedPuzzles.publishedModes[0] ?? null;
   const dailyPuzzleId = dailyMode ? publishedPuzzles.puzzles[dailyMode]?.id : undefined;
   const leaderboard = useDailyLeaderboard(dailyPuzzleId, leaderboardRefreshKey);
+  const streakLeaderboard = useStreakLeaderboard();
 
   useEffect(() => {
     let active = true;
@@ -213,7 +216,13 @@ export default function FootGridApp() {
                 rank={dailyAttempt.rank}
                 score={dailyAttempt.attempt.score}
               />
-              <DailyLeaderboard loading={leaderboard.loading} rows={leaderboard.rows} />
+              <DailyLeaderboard
+                currentUserId={leaderboard.currentUserId}
+                error={leaderboard.error}
+                loading={leaderboard.loading}
+                myRow={leaderboard.myRow}
+                rows={leaderboard.rows}
+              />
             </>
           ) : null}
           <HomeMenu
@@ -223,6 +232,13 @@ export default function FootGridApp() {
             loadingDaily={publishedPuzzles.loading || dailyAttempt.loading}
             onDaily={startDaily}
             onPractice={() => setScreen("practice")}
+          />
+          <StreakLeaderboard
+            currentUserId={streakLeaderboard.currentUserId}
+            error={streakLeaderboard.error}
+            loading={streakLeaderboard.loading}
+            myRow={streakLeaderboard.myRow}
+            rows={streakLeaderboard.rows}
           />
         </>
       ) : (
@@ -250,7 +266,15 @@ export default function FootGridApp() {
               onBackToMenu={game.backToMenu}
             />
           ) : null}
-          {playKind === "daily" ? <DailyLeaderboard loading={leaderboard.loading} rows={leaderboard.rows} /> : null}
+          {playKind === "daily" ? (
+            <DailyLeaderboard
+              currentUserId={leaderboard.currentUserId}
+              error={leaderboard.error}
+              loading={leaderboard.loading}
+              myRow={leaderboard.myRow}
+              rows={leaderboard.rows}
+            />
+          ) : null}
         </section>
       )}
       {game.activeCell ? (
