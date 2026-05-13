@@ -589,6 +589,26 @@ header {
   padding: 10px 12px;
 }
 
+.game-notice {
+  border: 1px solid var(--gris);
+  background: #111a11;
+  color: var(--gris-clair);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.game-notice.error {
+  border-color: #8f3a31;
+  color: #ffb4a8;
+}
+
+.game-notice.success {
+  border-color: var(--or);
+  color: var(--blanc);
+}
+
 .daily-result {
   border: 1px solid var(--gris);
   background: #0a0f0a;

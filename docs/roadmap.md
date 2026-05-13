@@ -34,6 +34,7 @@ Implemented:
 - ranked daily attempt API routes and daily leaderboard display
 - streak leaderboard display
 - daily attempt status handling with completed-score/rank display
+- first-pass game-state messaging for ranked/local play, loading, and save failures
 - daily/practice home split with random practice puzzle loading
 - logged-in practice attempt persistence and account practice stats
 - draft player import, puzzle generation, and generated-grid import scripts for a Big 5 dataset
@@ -60,6 +61,7 @@ Important files:
 - A first-pass daily leaderboard is shown for the daily puzzle, with top 10 + current user fallback.
 - A first-pass streak leaderboard is shown from `streak_leaderboard`.
 - Completed daily attempts now show the user's saved score/rank instead of starting a second ranked replay.
+- Daily/practice start and save failures now surface in the UI instead of only logging to the console.
 - The game still gives immediate client-side feedback, but ranked completion is recomputed server-side from submitted answers and Supabase accepted answers.
 - The player database is prototype data and should not be treated as production-quality.
 - Practice history and stats are persisted for logged-in users. Practice selection excludes completed puzzles when fresh puzzles remain, then allows replay with a clear "all done" notice.
@@ -90,6 +92,7 @@ Tasks:
 - [x] Persist submitted answers in `daily_attempt_answers`.
 - [ ] Store full wrong-guess history if we want more detailed anti-cheat/audit data. Current schema stores one final submitted answer row per attempted cell.
 - [x] Add first-pass client states: not started, in progress, completed/already played.
+- [x] Add first-pass user-facing state messages: anonymous local play, ranked start failure, ranked save success/failure.
 - [ ] Add richer saved in-progress resume with submitted answers if we decide to persist every guess.
 - [x] Decide whether answers are submitted one by one or only at the end. First pass submits only at the end.
 

@@ -28,6 +28,10 @@ import SearchModal from "./game/SearchModal";
 
 const players = playersData as Player[];
 const puzzles = puzzlesData as PuzzlesByMode;
+type Notice = {
+  tone: "error" | "info" | "success";
+  text: string;
+};
 
 export default function FootGridApp() {
   const publishedPuzzles = usePublishedPuzzles(puzzles);
@@ -39,6 +43,8 @@ export default function FootGridApp() {
   const [practiceLoadingMode, setPracticeLoadingMode] = useState<Mode | null>(null);
   const [pendingPracticeMode, setPendingPracticeMode] = useState<Mode | null>(null);
   const [practiceNotice, setPracticeNotice] = useState<string | null>(null);
+  const [flowNotice, setFlowNotice] = useState<Notice | null>(null);
+  const [completionNotice, setCompletionNotice] = useState<Notice | null>(null);
   const [showDailyResult, setShowDailyResult] = useState(false);
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
   const activePuzzles = useMemo(
@@ -113,30 +119,47 @@ export default function FootGridApp() {
     };
 
     if (playKind === "daily") {
+      setCompletionNotice({ tone: "info", text: "Enregistrement du score classé..." });
       void dailyAttempt
         .completeAttempt(completion)
         .then((attempt) => {
           if (attempt) {
             setLeaderboardRefreshKey((value) => value + 1);
             setShowDailyResult(true);
+            setCompletionNotice({ tone: "success", text: "Score classé enregistré." });
             if (game.puzzle?.id) {
               void dailyAttempt.loadStatus(game.puzzle.id);
             }
+          } else {
+            setCompletionNotice(null);
           }
         })
-        .catch((error) => console.warn("Unable to submit ranked daily attempt.", error));
+        .catch((error) => {
+          console.warn("Unable to submit ranked daily attempt.", error);
+          setCompletionNotice({ tone: "error", text: "Impossible d'enregistrer le score classé. Tu peux réessayer en revenant au menu." });
+        });
       return;
     }
 
     if (playKind === "practice") {
+      setCompletionNotice(user ? { tone: "info", text: "Enregistrement de l'entraînement..." } : null);
       void practiceAttempt
         .completeAttempt(completion)
-        .catch((error) => console.warn("Unable to submit practice attempt.", error));
+        .then((attempt) => {
+          setCompletionNotice(attempt ? { tone: "success", text: "Entraînement enregistré." } : null);
+        })
+        .catch((error) => {
+          console.warn("Unable to submit practice attempt.", error);
+          setCompletionNotice({ tone: "error", text: "Impossible d'enregistrer cet entraînement." });
+        });
     }
   }, [dailyAttempt, game.puzzle, game.state, playKind, practiceAttempt, user]);
 
   async function startDaily() {
+    setFlowNotice(null);
+    setCompletionNotice(null);
     if (!dailyMode || !dailyPuzzleId) {
+      setFlowNotice({ tone: "error", text: "Aucun défi du jour n'est disponible pour le moment." });
       return;
     }
 
@@ -146,12 +169,23 @@ export default function FootGridApp() {
         return;
       }
 
-      const attempt = await dailyAttempt.startAttempt(dailyPuzzleId);
-      if (attempt?.status === "completed") {
-        void dailyAttempt.loadStatus(dailyPuzzleId);
-        setShowDailyResult(true);
+      try {
+        const attempt = await dailyAttempt.startAttempt(dailyPuzzleId);
+        if (attempt?.status === "completed") {
+          void dailyAttempt.loadStatus(dailyPuzzleId);
+          setShowDailyResult(true);
+          return;
+        }
+        if (attempt?.status === "in_progress") {
+          setFlowNotice({ tone: "info", text: "Ton essai classé est en cours. Le chrono continue côté serveur." });
+        }
+      } catch (error) {
+        console.warn("Unable to start ranked daily attempt.", error);
+        setFlowNotice({ tone: "error", text: "Impossible de démarrer le défi classé. Réessaie dans un instant." });
         return;
       }
+    } else {
+      setFlowNotice({ tone: "info", text: "Tu joues en local. Connecte-toi avant de commencer pour apparaître au classement." });
     }
 
     setShowDailyResult(false);
@@ -162,6 +196,8 @@ export default function FootGridApp() {
   async function startPractice(mode: Mode) {
     setPracticeLoadingMode(mode);
     setPracticeNotice(null);
+    setFlowNotice(null);
+    setCompletionNotice(null);
     try {
       const practicePuzzleResponse = await loadPracticePuzzle(mode, session?.access_token);
       const practicePuzzle = practicePuzzleResponse.puzzle;
@@ -180,6 +216,7 @@ export default function FootGridApp() {
       setPlayKind("practice");
     } catch (error) {
       console.warn("Unable to load practice puzzle from Supabase.", error);
+      setPracticeNotice("Impossible de charger une grille d'entraînement. Réessaie dans un instant.");
     } finally {
       setPracticeLoadingMode(null);
     }
@@ -225,6 +262,7 @@ export default function FootGridApp() {
               />
             </>
           ) : null}
+          {flowNotice ? <GameNotice notice={flowNotice} /> : null}
           <HomeMenu
             dailyDescription={dailyDescription(Boolean(user), dailyAttempt.attempt?.status)}
             dailyLabel={dailyLabel(Boolean(user), dailyAttempt.attempt?.status)}
@@ -246,6 +284,8 @@ export default function FootGridApp() {
           <button className="back-btn" onClick={game.backToMenu}>
             ← Changer de mode
           </button>
+          {flowNotice ? <GameNotice notice={flowNotice} /> : null}
+          {completionNotice ? <GameNotice notice={completionNotice} /> : null}
           {playKind === "practice" && practiceNotice ? <div className="practice-notice">{practiceNotice}</div> : null}
           <RulesPanel mode={game.mode} />
           <ErrorsRow errors={game.state.erreurs} />
@@ -291,6 +331,10 @@ export default function FootGridApp() {
   );
 }
 
+function GameNotice({ notice }: { notice: Notice }) {
+  return <div className={`game-notice ${notice.tone}`}>{notice.text}</div>;
+}
+
 function dailyLabel(isLoggedIn: boolean, status?: "in_progress" | "completed" | "failed" | "abandoned") {
   if (isLoggedIn && status === "completed") {
     return "Voir mon score";
@@ -309,7 +353,7 @@ function dailyDescription(isLoggedIn: boolean, status?: "in_progress" | "complet
     return "Ton score est déjà enregistré pour aujourd'hui.";
   }
   if (status === "in_progress") {
-    return "Reprends ton essai classé du jour.";
+    return "Ton essai est ouvert. Le chrono continue côté serveur.";
   }
   return "La grille classée du jour.";
 }
