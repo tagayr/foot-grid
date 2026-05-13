@@ -24,12 +24,44 @@ export function useDailyAttempt() {
   const { session, user } = useAuth();
   const [attempt, setAttempt] = useState<DailyAttempt | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rank, setRank] = useState<number | null>(null);
   const [submittedAttemptId, setSubmittedAttemptId] = useState<string | null>(null);
 
   useEffect(() => {
     setAttempt(null);
+    setRank(null);
     setSubmittedAttemptId(null);
   }, [user?.id]);
+
+  const loadStatus = useCallback(
+    async (puzzleId: string) => {
+      if (!session?.access_token) {
+        setAttempt(null);
+        setRank(null);
+        return null;
+      }
+
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/daily-attempt/status?puzzleId=${encodeURIComponent(puzzleId)}`, {
+          headers: {
+            authorization: `Bearer ${session.access_token}`
+          }
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Unable to load daily attempt status.");
+        }
+        setAttempt(payload.attempt ?? null);
+        setRank(payload.rank ?? null);
+        setSubmittedAttemptId(payload.attempt?.status === "completed" ? payload.attempt.id : null);
+        return payload.attempt as DailyAttempt | null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [session?.access_token]
+  );
 
   const startAttempt = useCallback(
     async (puzzleId: string) => {
@@ -52,6 +84,7 @@ export function useDailyAttempt() {
           throw new Error(payload.error ?? "Unable to start daily attempt.");
         }
         setAttempt(payload.attempt);
+        setRank(null);
         setSubmittedAttemptId(payload.attempt?.status === "completed" ? payload.attempt.id : null);
         return payload.attempt as DailyAttempt;
       } finally {
@@ -95,6 +128,7 @@ export function useDailyAttempt() {
         throw new Error(payload.error ?? "Unable to complete daily attempt.");
       }
       setAttempt(payload.attempt);
+      setRank(null);
       return payload.attempt as DailyAttempt;
     },
     [attempt, session?.access_token, submittedAttemptId]
@@ -104,6 +138,8 @@ export function useDailyAttempt() {
     attempt,
     completeAttempt,
     loading,
+    loadStatus,
+    rank,
     ranked: Boolean(user),
     startAttempt
   };

@@ -575,6 +575,67 @@ header {
   font-size: 13px;
 }
 
+.practice-notice {
+  border: 1px solid var(--gris);
+  background: #111a11;
+  color: var(--gris-clair);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.daily-result {
+  border: 1px solid var(--gris);
+  background: #0a0f0a;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
+}
+
+.daily-result-kicker,
+.daily-result-stat span {
+  color: var(--gris-clair);
+  font-family: var(--font-barlow-condensed), sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.daily-result h2 {
+  color: var(--or);
+  font-family: var(--font-barlow-condensed), sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  margin: 4px 0 0;
+  text-transform: uppercase;
+}
+
+.daily-result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.daily-result-stat {
+  border: 1px solid #1a2a1a;
+  padding: 10px;
+}
+
+.daily-result-stat strong {
+  color: var(--blanc);
+  display: block;
+  font-family: var(--font-barlow-condensed), sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 5px;
+}
+
 .leaderboard-list {
   display: flex;
   flex-direction: column;

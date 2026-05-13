@@ -123,7 +123,7 @@ export async function loadRandomPracticePuzzle(
   return puzzles.get(selectedPuzzle.id) ?? null;
 }
 
-async function loadPuzzlesByIds(supabase: SupabaseClient<Database>, puzzleIds: string[]) {
+export async function loadPuzzlesByIds(supabase: SupabaseClient<Database>, puzzleIds: string[]) {
   const { data: axisRows, error: axisError } = await supabase
     .from("puzzle_axes")
     .select("puzzle_id, axis, position, kind, label, season_start")

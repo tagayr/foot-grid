@@ -32,6 +32,7 @@ Implemented:
 - published-puzzle loader from Supabase with local fallback
 - Supabase player search data for published Supabase puzzles
 - ranked daily attempt API routes and daily leaderboard display
+- daily attempt status handling with completed-score/rank display
 - daily/practice home split with random practice puzzle loading
 - logged-in practice attempt persistence and account practice stats
 - draft player import, puzzle generation, and generated-grid import scripts for a Big 5 dataset
@@ -56,9 +57,10 @@ Important files:
 
 - Ranked daily attempts are persisted for logged-in users.
 - A first-pass daily leaderboard is shown for the daily puzzle.
+- Completed daily attempts now show the user's saved score/rank instead of starting a second ranked replay.
 - The game still gives immediate client-side feedback, but ranked completion is recomputed server-side from submitted answers and Supabase accepted answers.
 - The player database is prototype data and should not be treated as production-quality.
-- Practice history and stats are persisted for logged-in users, but practice selection does not yet exclude puzzles already completed by that user.
+- Practice history and stats are persisted for logged-in users. Practice selection excludes completed puzzles when fresh puzzles remain, then allows replay with a clear "all done" notice.
 - Puzzle generation depends on local ignored source/artifact files under `data/`, so a fresh checkout still needs `data/players_all.json` before it can reproduce the pipeline.
 - Generated puzzle candidates have been imported to Supabase as drafts; the next model publishes one ranked daily puzzle per date and uses the rest as practice.
 - There is a manual publish script, but not yet an admin review UI or recurring scheduler.
@@ -85,7 +87,8 @@ Tasks:
 - [x] Move score/found/error computation server-side for ranked completion.
 - [x] Persist submitted answers in `daily_attempt_answers`.
 - [ ] Store full wrong-guess history if we want more detailed anti-cheat/audit data. Current schema stores one final submitted answer row per attempted cell.
-- [ ] Add richer client states: not started, in progress, completed, already played.
+- [x] Add first-pass client states: not started, in progress, completed/already played.
+- [ ] Add richer saved in-progress resume with submitted answers if we decide to persist every guess.
 - [x] Decide whether answers are submitted one by one or only at the end. First pass submits only at the end.
 
 Suggested owner: backend/game logic.
@@ -101,6 +104,7 @@ Acceptance criteria:
 
 - A logged-in user can complete today's grid and create a `daily_attempts` row.
 - Refreshing the page does not allow a second ranked submission.
+- A completed daily attempt shows saved score/rank and the leaderboard.
 - Anonymous users can still play locally, but cannot submit to ranked leaderboard.
 
 ### 2. Leaderboards
@@ -114,7 +118,8 @@ Tasks:
 - [x] Fetch `daily_leaderboard` for today's puzzle.
 - Fetch `streak_leaderboard`.
 - [x] Add daily leaderboard UI section.
-- Add "my rank" treatment.
+- [x] Add "my rank" treatment for completed daily result.
+- Add highlighted "my rank" treatment inside the leaderboard list.
 - Decide pagination or top-N display.
 - Add empty/loading/error states.
 
@@ -170,7 +175,8 @@ Tasks:
 - [x] Add home/menu split: "Daily puzzle" and "Practice".
 - [x] Add mode picker for practice: club x club, club x year, club x nationality.
 - [x] Select practice grids from the pre-generated published practice pool.
-- [ ] Exclude puzzles the logged-in user has already completed.
+- [x] Exclude puzzles the logged-in user has already completed while fresh puzzles remain.
+- [x] Allow replay with a "tout est terminé" state when every puzzle in a practice mode is complete.
 - [x] Add practice stats: puzzles played, average correct answers, average duration, per mode.
 - [x] Store optional `random_attempts`.
 - [ ] Add richer practice stats: min/max duration, recent practice results, and trend/history views.
@@ -189,6 +195,7 @@ Acceptance criteria:
 
 - Daily and random modes are clearly separated.
 - Logged-in practice completions create `random_attempts` rows.
+- Logged-in practice selection prefers uncompleted puzzles, then falls back to replay.
 - Account space shows aggregate practice stats.
 - Random play does not pollute daily leaderboard.
 - Random grid has at least one valid answer per cell.
