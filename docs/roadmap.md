@@ -214,9 +214,24 @@ Done:
 - [x] `docs/puzzle-generation.md` — documents Clement's current pipeline assumptions, commands, and reported generation results.
 - [x] `package.json` commands for player import, puzzle generation, generated-grid import, and daily publishing.
 
+Database enrichment status:
+
+- [x] `data/database_5leagues_2025-26.json` committed to the repo — 2 475 players from the Big 5 leagues (2025-26 season), enriched with: `rang_mondial`, `valeur_marchande`, `position`, `position_detail`, `pied`, `taille`, `age`, `date_naissance`, `ville_naissance`, `pays_naissance`, `trophees`, `nb_clubs_carriere`.
+- [x] Difficulty scoring now uses `rang_mondial` (Transfermarkt world ranking) as primary source, with `valeur_marchande` + career span as fallback for the 201 unranked players.
+- [x] Difficulty thresholds calibrated on the real ranking distribution: level 1 ≤ 200, level 2 ≤ 1 000, level 3 ≤ 2 000.
+- [x] Player dominance filter: grids where a single player solves more than 3 of 9 cells are rejected.
+
+Current generation results with enriched database:
+
+| Mode | Valid cells | Easy | Medium | Hard |
+|------|------------|------|--------|------|
+| club_club | 10 785 | 2 | 24 | 500 |
+| club_year | 2 919 | 7 | 16 | 77 |
+| club_nationality | 4 851 | 7 | 19 | 70 |
+
 Important current caveats:
 
-- [ ] `data/players_all.json` is required by both scripts, but is intentionally ignored by Git. Each developer needs to obtain it locally before reproducing the pipeline.
+- [ ] `data/players_all.json` is still required by both scripts and is intentionally ignored by Git. Use `data/database_5leagues_2025-26.json` as the canonical source going forward — scripts need updating to point to this file.
 - [ ] `data/puzzle-cells.json` and `data/generated-grids.json` are generated artifacts, also ignored by Git.
 - [ ] The generator currently reads local JSON, not the active Supabase snapshot. That is fine for a draft, but not yet the database-backed production flow described in the product target.
 - [ ] The importer uses snapshot fields, but the entity reuse/snapshot semantics still need review before relying on historical reproducibility.
@@ -224,12 +239,14 @@ Important current caveats:
 
 Remaining tasks:
 
-- [ ] Reconcile difficulty docs with code thresholds and decide the first production calibration.
-- [ ] Decide whether production generation reads directly from Supabase snapshots or from generated local data files.
-- [ ] Improve player search with richer Supabase metadata, ranking, and server-side filtering if the dataset grows.
-- [ ] Build admin review UI or a safer scheduling workflow for selecting future daily puzzles.
-- [ ] Add a command for scheduled/CI use (GitHub Actions nightly run).
-- [ ] Validate generated grids manually before scheduling as daily puzzles.
+- [ ] **Update pipeline scripts** to read from `data/database_5leagues_2025-26.json` instead of `data/players_all.json`.
+- [ ] **Curate axis lists**: define a whitelist of "premium" clubs and nationalities to use as grid axes — ensures grids always feature recognizable names (e.g. no lower-division clubs as row/col headers). Target: top ~100 clubs by European recognition.
+- [ ] **Manual grid curation**: review generated easy/medium grids before publishing — validate that all 9 cells have recognizable answers, no cell is trivially obvious, and the overall grid is satisfying to play.
+- [ ] **Grid rotation planning**: with ~35 easy+medium grids per mode, establish a rotation schedule (e.g. 3 modes × weekly rotation = ~10 weeks of variety). Growing the database (historical data, more seasons) will increase this pool.
+- [ ] **Expand historical coverage**: add career data from past seasons (2015–2024) to increase intersection density — more historical data = more easy/medium grids and richer solutions per cell.
+- [ ] **Improve player search**: surface `rang_mondial` and `position` in search results to help players confirm they have the right person.
+- [ ] **Build admin review UI** or a safer scheduling workflow for selecting future daily puzzles.
+- [ ] **Add CI command** for scheduled/automated generation (GitHub Actions nightly run).
 
 Suggested owner: data/backend.
 
@@ -352,14 +369,22 @@ Acceptance criteria:
 
 ## Suggested Execution Order
 
-1. Ranked daily attempts
-2. Daily leaderboard UI
-3. User space profile/results
-4. Random grid mode
-5. Puzzle generation pipeline
-6. Admin review workflow
-7. Data provider replacement
-8. PWA/mobile packaging
+Already shipped:
+1. ~~Ranked daily attempts~~ ✓
+2. ~~Daily leaderboard UI~~ ✓
+3. ~~User space profile/results~~ ✓
+4. ~~Practice mode (random grids)~~ ✓
+5. ~~Puzzle generation pipeline (draft)~~ ✓
+6. ~~Big 5 database enrichment (rang_mondial, valeur_marchande, position)~~ ✓
+
+Next priorities:
+1. **Curate axis whitelist** — define the ~100 clubs and ~30 nationalities allowed as grid headers
+2. **Manual grid review** — play-test and approve easy/medium grids before scheduling
+3. **Grid rotation calendar** — plan daily puzzle schedule across modes and difficulty levels
+4. **Expand historical data** — add career data from 2015–2024 to increase easy/medium grid count
+5. Admin review UI — in-browser tool to approve/reject/schedule draft puzzles
+6. Data provider strategy — sustainable long-term data source with incremental updates
+7. PWA/mobile packaging
 
 Testing/CI can be started in parallel at any time.
 
@@ -367,13 +392,13 @@ Testing/CI can be started in parallel at any time.
 
 If two people are working together:
 
-- Person A: daily attempts, backend submission, leaderboard queries.
-- Person B: leaderboard/account UI, mobile layout, UX states.
+- Person A: axis whitelist + grid curation + rotation calendar.
+- Person B: admin review UI + scheduling workflow.
 
 Then:
 
-- Person A: puzzle generation and data importer.
-- Person B: random mode and admin review UI.
+- Person A: historical data expansion + pipeline automation.
+- Person B: PWA manifest + mobile audit.
 
 ## Security Notes
 
