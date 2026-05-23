@@ -71,6 +71,7 @@ Important files:
 - Supabase player search currently loads display names only; richer player metadata and server-side search can come later.
 - Ranked daily and practice attempts are persisted for logged-in users, with server-side score verification. Daily attempts store one final answer row per attempted cell; practice attempts currently store aggregate result fields only.
 - Supabase types are manually maintained for now.
+- Supabase Data API grants are not yet documented in migrations. Starting May 30, 2026 for new projects and October 30, 2026 for existing projects, new `public` tables need explicit `GRANT`s before `supabase-js`/PostgREST/GraphQL can access them.
 - The old `index.html`, `players_raw.json`, and `players_clean.json` still exist as prototype/reference artifacts.
 
 ## Work Packages
@@ -382,6 +383,31 @@ Acceptance criteria:
 - Pull requests run typecheck, tests, and build.
 - Core game flow has at least one browser-level smoke test.
 
+### 10. Supabase Security And Grants Hardening
+
+Goal: keep the database compatible with Supabase's Data API grant changes and avoid accidental overexposure.
+
+Tasks:
+
+- Add explicit `GRANT` statements to existing migrations so fresh projects work after Supabase's 2026 rollout.
+- Add a migration checklist: every new `public` table needs matching grants plus RLS policies.
+- Use least-privilege grants: public read tables get `select` for `anon`/`authenticated`; user-owned tables get only the operations required by the app; admin-only tables stay service-role only.
+- Review views used by the app (`daily_leaderboard`, `streak_leaderboard`, active snapshots) and document their expected Data API grants.
+- Run Supabase Security Advisor after the grant pass and document any remaining warnings.
+
+Suggested owner: backend/security.
+
+Primary files:
+
+- `supabase/migrations/`
+- `docs/supabase.md`
+
+Acceptance criteria:
+
+- A fresh Supabase project can apply all migrations and be queried by the app without `42501` Data API permission errors.
+- Every app-accessed table/view has explicit grants and RLS policy intent documented.
+- No service-role-only table is accidentally exposed to `anon`.
+
 ## Suggested Execution Order
 
 Already shipped:
@@ -399,7 +425,8 @@ Next priorities:
 4. **Expand historical data** — add career data from 2015–2024 to increase easy/medium grid count
 5. Admin review UI — in-browser tool to approve/reject/schedule draft puzzles
 6. Data provider strategy — sustainable long-term data source with incremental updates
-7. PWA/mobile packaging
+7. Supabase grants hardening — add explicit Data API grants before the 2026 rollout dates
+8. PWA/mobile packaging
 
 Testing/CI can be started in parallel at any time.
 
@@ -421,3 +448,4 @@ Then:
 - The publishable Supabase key is safe in browser code.
 - The service role key bypasses RLS and must only be used in trusted scripts/server code.
 - If the service role key appears in chat, screenshots, logs, or a public issue, rotate it.
+- Future Supabase migrations must include explicit Data API `GRANT`s for any new `public` table or view used by `supabase-js`, in addition to RLS policies.
